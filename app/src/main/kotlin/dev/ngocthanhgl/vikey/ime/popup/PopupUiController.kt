@@ -17,7 +17,6 @@
 package dev.ngocthanhgl.vikey.ime.popup
 
 import android.content.Context
-import android.os.System
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.spring

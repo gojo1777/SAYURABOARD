@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import dev.ngocthanhgl.vikey.ime.keyboard.Key
+import dev.ngocthanhgl.vikey.ime.text.keyboard.TextKey
 import dev.ngocthanhgl.vikey.ime.theme.FlorisImeUi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -59,7 +60,7 @@ fun PopupBaseBox(
 
     SnyggBox(
         elementName = FlorisImeUi.Key.elementName,
-        attributes = attributes + (FlorisImeUi.Attr.Code to key.computedData.code),
+        attributes = attributes + (FlorisImeUi.Attr.Code to (key as? TextKey)?.computedData?.code ?: 0),
         selector = SnyggSelector.PRESSED,
         modifier = modifier,
         contentAlignment = Alignment.Center,
