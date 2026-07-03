@@ -17,6 +17,7 @@
 package dev.ngocthanhgl.vikey.ime.popup
 
 import android.content.Context
+import android.os.System
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.spring
@@ -90,6 +91,7 @@ class PopupUiController(
     private var extRenderInfo by mutableStateOf<ExtRenderInfo?>(null)
 
     private var activeElementIndex by mutableIntStateOf(-1)
+    private var hideTimestamp = 0L
     var evaluator: ComputingEvaluator = DefaultComputingEvaluator
     var keyHintConfiguration: KeyHintConfiguration = KeyHintConfiguration.HINTS_DISABLED
 
@@ -438,7 +440,11 @@ class PopupUiController(
         baseRenderInfo = null
         extRenderInfo = null
         activeElementIndex = -1
+        hideTimestamp = System.nanoTime()
     }
+
+    fun wasJustHidden(): Boolean =
+        System.nanoTime() - hideTimestamp < 100_000_000 // 100ms
 
     private fun getElementOrNull(elements: List<List<Element>>, index: Int): Element? {
         if (index < 0) {
@@ -466,21 +472,23 @@ class PopupUiController(
         AnimatedContent(
             targetState = baseRenderInfo,
             transitionSpec = {
-                val enter = scaleIn(initialScale = 0.85f, animationSpec = popupAnim) + fadeIn(popupAnim)
+                val enter = scaleIn(initialScale = 1f, animationSpec = tween(0)) + fadeIn(tween(0))
                 val exit = scaleOut(targetScale = 0.85f, animationSpec = popupFadeOut) + fadeOut(popupFadeOut)
                 enter togetherWith exit using SizeTransform(clip = false)
             },
             label = "basePopup",
         ) { renderInfo ->
-            renderInfo?.let { info ->
-                PopupBaseBox(
-                    modifier = Modifier
-                        .requiredSize(info.bounds.size.toDpSize())
-                        .absoluteOffset { info.bounds.topLeft.toIntOffset() },
-                    attributes = attributes,
-                    key = info.key,
-                    shouldIndicateExtendedPopups = info.shouldIndicateExtendedPopups && extRenderInfo == null,
-                )
+            if (extRenderInfo == null) {
+                renderInfo?.let { info ->
+                    PopupBaseBox(
+                        modifier = Modifier
+                            .requiredSize(info.bounds.size.toDpSize())
+                            .absoluteOffset { info.bounds.topLeft.toIntOffset() },
+                        attributes = attributes,
+                        key = info.key,
+                        shouldIndicateExtendedPopups = info.shouldIndicateExtendedPopups && extRenderInfo == null,
+                    )
+                }
             }
         }
         AnimatedContent(

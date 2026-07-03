@@ -856,7 +856,7 @@ private class TextKeyboardLayoutController(
                     }
                 },
             )
-            if (prefs.keyboard.popupEnabled.get() && popupUiController.isSuitableForPopups(key)) {
+            if (prefs.keyboard.popupEnabled.get() && popupUiController.isSuitableForPopups(key) && !popupUiController.wasJustHidden()) {
                 popupUiController.show(key)
             }
             inputFeedbackController?.keyPress(key.computedData)

@@ -58,8 +58,9 @@ fun PopupBaseBox(
     }
 
     SnyggBox(
-        elementName = FlorisImeUi.KeyPopupBox.elementName,
-        attributes = attributes,
+        elementName = FlorisImeUi.Key.elementName,
+        attributes = attributes + (FlorisImeUi.Attr.Code to key.computedData.code),
+        selector = SnyggSelector.PRESSED,
         modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
