@@ -18,6 +18,9 @@ package dev.ngocthanhgl.vikey.ime.text
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BlurMaskFilter
+import android.graphics.Canvas
+import android.graphics.Paint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +49,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.ui.unit.Dp
@@ -92,7 +96,13 @@ fun TextInputLayout(
         }
     }
 
-    val bgPhotoBitmap = remember(bgBitmap) { bgBitmap?.asImageBitmap() }
+    val density = LocalDensity.current.density
+    val blurredBitmap = remember(bgBitmap, bgPhotoBlur) {
+        if (bgBitmap != null && bgPhotoBlur > 0) {
+            bgBitmap!!.applyBlur(bgPhotoBlur.dp.value * density)
+        } else bgBitmap
+    }
+    val bgPhotoBitmap = remember(blurredBitmap) { blurredBitmap?.asImageBitmap() }
     var photoWindowPos by remember { mutableStateOf(Offset.Zero) }
     var photoBoxSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -180,4 +190,12 @@ fun TextInputLayout(
             }
         }
     }
+}
+
+private fun Bitmap.applyBlur(radiusPx: Float): Bitmap {
+    val output = Bitmap.createBitmap(width, height, config ?: Bitmap.Config.ARGB_8888)
+    Canvas(output).drawBitmap(this, 0f, 0f, Paint().apply {
+        maskFilter = BlurMaskFilter(radiusPx, BlurMaskFilter.Blur.NORMAL)
+    })
+    return output
 }
