@@ -434,6 +434,7 @@ private fun TextKeyButton(
     val isLiquidGlass = LocalLiquidGlassEnabled.current
     val backdrop = rememberLayerBackdrop()
     var keyCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    val currentPhoto by rememberUpdatedState(backgroundPhoto)
     val lensRefraction = remember { Animatable(if (isLiquidGlass) lqConfig.lensIdle else 0f) }
     var shouldReachPeak by remember { mutableStateOf(false) }
 
@@ -599,7 +600,7 @@ private fun TextKeyButton(
                         },
                         highlight = { Highlight.Ambient },
                         onDrawBackdrop = { onDraw: DrawScope.() -> Unit ->
-                            val photo = backgroundPhoto
+                            val photo = currentPhoto
                             val coords = keyCoords
                             if (photo != null && coords != null) {
                                 val keyPos = coords.positionInWindow()
