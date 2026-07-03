@@ -60,7 +60,7 @@ fun PopupBaseBox(
 
     SnyggBox(
         elementName = FlorisImeUi.Key.elementName,
-        attributes = attributes + (FlorisImeUi.Attr.Code to (key as? TextKey)?.computedData?.code ?: 0),
+        attributes = attributes + (FlorisImeUi.Attr.Code to ((key as? TextKey)?.computedData?.code?.toString() ?: "0")),
         selector = SnyggSelector.PRESSED,
         modifier = modifier,
         contentAlignment = Alignment.Center,
