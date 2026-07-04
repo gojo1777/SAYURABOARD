@@ -269,6 +269,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
                         dao.update(existing[0].copy(freq = freq))
                     } else {
                         dao.insert(UserDictionaryEntry(0, word, freq, null, null))
+                    }
                 }
             }
         } catch (_: Exception) {}
@@ -786,7 +787,6 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
                     candidates.add(mergedPool[i] to base)
                 }
             }
-        }
 
         if (candidates.isEmpty()) {
             val contextWords = context.trimEnd().split(whitespace)
