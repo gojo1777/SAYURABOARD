@@ -433,11 +433,9 @@ private fun TextKeyButton(
     var keyCoords by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val currentPhoto by rememberUpdatedState(backgroundPhoto)
     val lensRefraction = remember { Animatable(if (isLiquidGlass) lqConfig.lensIdle else 0f) }
-    var shouldReachPeak by remember { mutableStateOf(false) }
 
     LaunchedEffect(key.isPressed) {
         if (key.isPressed) {
-            shouldReachPeak = true
             if (lqConfig.rippleEnabled) {
                 val center = Offset(
                     key.visibleBounds.center.x,
@@ -445,20 +443,14 @@ private fun TextKeyButton(
                 )
                 onRipple?.invoke(center)
             }
-        }
-    }
-
-    LaunchedEffect(shouldReachPeak) {
-        if (shouldReachPeak) {
             lensRefraction.snapTo(lqConfig.lensPeak)
-            shouldReachPeak = false
-        } else if (!key.isPressed) {
+        } else {
             lensRefraction.animateTo(lqConfig.lensIdle, spring(dampingRatio = lqConfig.reboundDamping, stiffness = lqConfig.reboundStiffness))
         }
     }
 
     LaunchedEffect(lqConfig.lensIdle) {
-        if (!key.isPressed && !shouldReachPeak) {
+        if (!key.isPressed) {
             lensRefraction.snapTo(lqConfig.lensIdle)
         }
     }
