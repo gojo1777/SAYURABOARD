@@ -51,8 +51,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -124,7 +122,6 @@ import org.florisboard.lib.snygg.ui.SnyggBox
 import org.florisboard.lib.snygg.ui.SnyggIcon
 import org.florisboard.lib.snygg.ui.SnyggText
 import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
-import java.io.File
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.sqrt
@@ -361,7 +358,7 @@ fun TextKeyboardLayout(
             isSuitableForExtendedPopup = { key ->
                 if (key is TextKey) {
                     val keyCode = key.computedData.code
-                    keyCode > KeyCode.SPACE && keyCode != KeyCode.CJK_SPACE || ExceptionsForKeyCodes.contains(keyCode)
+                    (keyCode > KeyCode.SPACE && keyCode != KeyCode.CJK_SPACE) || ExceptionsForKeyCodes.contains(keyCode)
                 } else {
                     true
                 }
@@ -455,11 +452,7 @@ private fun TextKeyButton(
         if (shouldReachPeak) {
             lensRefraction.snapTo(lqConfig.lensPeak)
             shouldReachPeak = false
-        }
-    }
-
-    LaunchedEffect(key.isPressed, shouldReachPeak) {
-        if (!key.isPressed && !shouldReachPeak) {
+        } else if (!key.isPressed) {
             lensRefraction.animateTo(lqConfig.lensIdle, spring(dampingRatio = lqConfig.reboundDamping, stiffness = lqConfig.reboundStiffness))
         }
     }

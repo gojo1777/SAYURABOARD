@@ -3,7 +3,6 @@ package dev.ngocthanhgl.vikey.app.settings.theme
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -82,6 +81,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+
+private const val CROP_WIDTH_FRACTION = 0.9f
+
+private object LgDefaults {
+    const val lensIdle = 500
+    const val lensPeak = 800
+    const val heightMultiplier = 250
+    const val amountMultiplier = 150
+    const val textLift = 140
+    const val pressScale = 108
+    const val chromaticEnabled = true
+    const val depthEnabled = true
+    const val rippleEnabled = true
+    const val reboundDamping = 28
+    const val reboundStiffness = 220
+}
 
 @Composable
 fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
@@ -292,17 +307,17 @@ fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
     Button(
         onClick = {
             scope.launch {
-                prefs.liquidGlass.lensIdle.set(500)
-                prefs.liquidGlass.lensPeak.set(800)
-                prefs.liquidGlass.heightMultiplier.set(250)
-                prefs.liquidGlass.amountMultiplier.set(150)
-                prefs.liquidGlass.textLift.set(140)
-                prefs.liquidGlass.pressScale.set(108)
-                prefs.liquidGlass.chromaticEnabled.set(true)
-                prefs.liquidGlass.depthEnabled.set(true)
-                prefs.liquidGlass.rippleEnabled.set(true)
-                prefs.liquidGlass.reboundDamping.set(28)
-                prefs.liquidGlass.reboundStiffness.set(220)
+                prefs.liquidGlass.lensIdle.set(LgDefaults.lensIdle)
+                prefs.liquidGlass.lensPeak.set(LgDefaults.lensPeak)
+                prefs.liquidGlass.heightMultiplier.set(LgDefaults.heightMultiplier)
+                prefs.liquidGlass.amountMultiplier.set(LgDefaults.amountMultiplier)
+                prefs.liquidGlass.textLift.set(LgDefaults.textLift)
+                prefs.liquidGlass.pressScale.set(LgDefaults.pressScale)
+                prefs.liquidGlass.chromaticEnabled.set(LgDefaults.chromaticEnabled)
+                prefs.liquidGlass.depthEnabled.set(LgDefaults.depthEnabled)
+                prefs.liquidGlass.rippleEnabled.set(LgDefaults.rippleEnabled)
+                prefs.liquidGlass.reboundDamping.set(LgDefaults.reboundDamping)
+                prefs.liquidGlass.reboundStiffness.set(LgDefaults.reboundStiffness)
             }
         },
         modifier = Modifier
@@ -417,7 +432,11 @@ private fun CropPhotoDialog(
 ) {
     val bitmap = remember(imageUri) {
         context.contentResolver.openInputStream(imageUri)?.use { stream ->
-            BitmapFactory.decodeStream(stream)
+            val opts = BitmapFactory.Options().apply {
+                inMutable = true
+                inSampleSize = 2
+            }
+            BitmapFactory.decodeStream(stream, null, opts)
         }
     }
     if (bitmap == null) {
@@ -458,7 +477,7 @@ private fun CropPhotoDialog(
                                 if (dw > 0f && dh > 0f) {
                                     val contentW = dw * scale
                                     val contentH = (bh * dw / bw) * scale
-                                    val cropW = dw * 0.9f
+                                    val cropW = dw * CROP_WIDTH_FRACTION
                                     val cropH = cropW / aspectRatio
                                     val maxOffX = ((contentW - cropW) / 2f).coerceAtLeast(0f)
                                     val maxOffY = ((contentH - cropH) / 2f).coerceAtLeast(0f)
@@ -485,7 +504,7 @@ private fun CropPhotoDialog(
                             ),
                     )
                     Canvas(Modifier.fillMaxSize()) {
-                        val cropW = size.width * 0.9f
+                        val cropW = size.width * CROP_WIDTH_FRACTION
                         val cropH = cropW / aspectRatio
                         val left = (size.width - cropW) / 2f
                         val top = (size.height - cropH) / 2f
@@ -542,7 +561,7 @@ private fun CropPhotoDialog(
                             val rh = bh * fs
                             val ox = 0f
                             val oy = (dh - rh) / 2f
-                            val cw = dw * 0.9f
+                            val cw = dw * CROP_WIDTH_FRACTION
                             val ch = cw / aspectRatio
                             val cl = (dw - cw) / 2f
                             val ct = (dh - ch) / 2f

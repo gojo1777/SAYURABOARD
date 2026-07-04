@@ -88,7 +88,21 @@ fun TextInputLayout(
     LaunchedEffect(bgPhotoPath) {
         withContext(Dispatchers.IO) {
             val file = File(context.filesDir, bgPhotoPath)
-            bgBitmap = if (file.exists()) BitmapFactory.decodeFile(file.absolutePath) else null
+            if (file.exists()) {
+                val opts = BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                    BitmapFactory.decodeFile(file.absolutePath, this)
+                    val maxDim = 1920
+                    inSampleSize = 1
+                    while (outWidth / inSampleSize > maxDim || outHeight / inSampleSize > maxDim) {
+                        inSampleSize *= 2
+                    }
+                    inJustDecodeBounds = false
+                }
+                bgBitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
+            } else {
+                bgBitmap = null
+            }
         }
     }
 
@@ -97,22 +111,26 @@ fun TextInputLayout(
     var photoBoxSize by remember { mutableStateOf(IntSize.Zero) }
 
     val bgPhotoState = remember(bgPhotoBitmap, photoWindowPos, photoBoxSize) {
-        if (bgPhotoBitmap != null && photoBoxSize != IntSize.Zero) {
-            BackgroundPhotoState(
-                bitmap = bgPhotoBitmap!!,
-                boxSize = photoBoxSize,
-                windowPos = photoWindowPos,
-            )
-        } else null
+        bgPhotoBitmap?.let { bitmap ->
+            if (photoBoxSize != IntSize.Zero) {
+                BackgroundPhotoState(
+                    bitmap = bitmap,
+                    boxSize = photoBoxSize,
+                    windowPos = photoWindowPos,
+                )
+            } else null
+        }
     }
 
     InlineSuggestionsStyleCache()
 
     LaunchedEffect(photoBoxSize) {
         if (photoBoxSize.width > 0 && photoBoxSize.height > 0) {
-            prefs.backgroundPhoto.lastKeyboardAspectRatio.set(
-                photoBoxSize.width.toFloat() / photoBoxSize.height.toFloat()
-            )
+            val newRatio = photoBoxSize.width.toFloat() / photoBoxSize.height.toFloat()
+            val currentRatio = prefs.backgroundPhoto.lastKeyboardAspectRatio.get()
+            if (kotlin.math.abs(newRatio - currentRatio) > 0.01f) {
+                prefs.backgroundPhoto.lastKeyboardAspectRatio.set(newRatio)
+            }
         }
     }
 
@@ -125,9 +143,9 @@ fun TextInputLayout(
                 photoBoxSize = coords.size
             },
     ) {
-        if (bgPhotoPath.isNotBlank() && bgBitmap != null) {
+        if (bgPhotoPath.isNotBlank() && bgPhotoBitmap != null) {
             Image(
-                bitmap = bgPhotoBitmap!!,
+                bitmap = bgPhotoBitmap,
                 contentDescription = null,
                 contentScale = ContentScale.FillBounds,
                 modifier = Modifier

@@ -119,7 +119,6 @@ class PopupUiController(
             bounds = boundsProvider(key),
             shouldIndicateExtendedPopups = when (key) {
                 is TextKey -> key.computedPopups.getPopupKeys(keyHintConfiguration).isNotEmpty()
-                //is EmojiKey -> key.computedPopups.getPopupKeys(keyHintConfiguration).isNotEmpty()
                 else -> false
             },
         )
@@ -159,7 +158,6 @@ class PopupUiController(
         // Determine key counts for each row
         val n = when (key) {
             is TextKey -> key.computedPopups.getPopupKeys(keyHintConfiguration).size
-            //is EmojiKey -> key.computedPopups.getPopupKeys(keyHintConfiguration).size
             else -> 0
         }
         val row1count: Int
@@ -270,10 +268,10 @@ class PopupUiController(
         for (uiIndex in uiIndices) {
             val rowIndex = if (uiIndex < row1count && row1count > 0) { 1 } else { 0 }
             val adjustedIndex = popupIndices[uiIndex]
-            val keyData = when (key) {
-                is TextKey -> key.computedPopups.getPopupKeys(keyHintConfiguration)[adjustedIndex]
-                //is EmojiKey -> key.computedPopups.getPopupKeys(keyHintConfiguration)[adjustedIndex]
-                else -> TextKeyData.UNSPECIFIED
+            val keyData = if (key is TextKey) {
+                key.computedPopups.getPopupKeys(keyHintConfiguration)[adjustedIndex]
+            } else {
+                TextKeyData.UNSPECIFIED
             }
             elements[rowIndex].add(Element(
                 data = keyData,
@@ -411,28 +409,6 @@ class PopupUiController(
         } else {
             null
         }
-    }
-
-    /**
-     * Gets the [EmojiSet] of the currently active key. May be either the key of the popup
-     * preview or one of the keys in extended popup, if shown. Returns null if [key] is noz a subclass of [EmojiKey].
-     *
-     * @param key Reference to the key currently controlling the popup.
-     * @return The [EmojiSet] object of the currently active key or null.
-     */
-    fun getActiveEmojiKeyData(key: Key): KeyData? {
-        return null
-        //return if (key is EmojiKey) {
-        //    val extRenderInfo = extRenderInfo ?: return null
-        //    val element = getElementOrNull(extRenderInfo.elements, activeElementIndex)
-        //    if (element != null) {
-        //        key.computedPopups.getPopupKeys(KeyHintConfiguration.HINTS_DISABLED).getOrNull(element.adjustedIndex) ?: key.computedData
-        //    } else {
-        //        key.computedData
-        //    }
-        //} else {
-        //    null
-        //}
     }
 
     fun hide() {
