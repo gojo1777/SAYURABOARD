@@ -296,7 +296,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
             if (bi != null) {
                 for (k1 in bi.keys()) {
                     val inner = bi.getJSONObject(k1)
-                    val map = mutableMapOf<String, Int>()
+                    val map = ConcurrentHashMap<String, Int>()
                     for (k2 in inner.keys()) map[k2] = inner.getInt(k2)
                     bigrams[k1] = map
                 }
@@ -305,7 +305,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
             if (tri != null) {
                 for (k1 in tri.keys()) {
                     val inner = tri.getJSONObject(k1)
-                    val map = mutableMapOf<String, Int>()
+                    val map = ConcurrentHashMap<String, Int>()
                     for (k2 in inner.keys()) map[k2] = inner.getInt(k2)
                     trigrams[k1] = map
                 }
