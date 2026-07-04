@@ -42,6 +42,7 @@ import androidx.room.Query
 import androidx.room.RenameColumn
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Update
@@ -308,6 +309,12 @@ interface ClipboardHistoryDao {
 
     @Query("DELETE FROM $CLIPBOARD_HISTORY_TABLE WHERE NOT isPinned")
     fun deleteAllUnpinned()
+
+    @Transaction
+    open fun moveToBeginning(oldId: Long, newItem: ClipboardItem) {
+        delete(oldId)
+        insert(newItem)
+    }
 }
 
 @Database(

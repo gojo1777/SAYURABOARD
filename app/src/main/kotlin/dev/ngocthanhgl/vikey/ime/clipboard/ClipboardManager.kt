@@ -286,8 +286,7 @@ class ClipboardManager(
 
     private fun moveToTheBeginning(oldItem: ClipboardItem, newItem: ClipboardItem) {
         ioScope.launch {
-            clipHistoryDao?.delete(oldItem.id)
-            clipHistoryDao?.insert(newItem)
+            clipHistoryDao?.moveToBeginning(oldItem.id, newItem)
         }
     }
 
@@ -406,5 +405,6 @@ class ClipboardManager(
     override fun close() {
         systemClipboardManager.removePrimaryClipChangedListener(this)
         cleanUpJob.cancel()
+        ioScope.cancel()
     }
 }

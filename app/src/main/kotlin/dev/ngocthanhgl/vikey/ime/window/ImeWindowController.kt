@@ -475,20 +475,20 @@ class ImeWindowController(
         }
 
         fun endMoveGesture(spec: ImeWindowSpec) {
-            var keepEnabled = true
+            val keepEnabled = when (spec) {
+                is ImeWindowSpec.Fixed -> true
+                is ImeWindowSpec.Floating -> spec.props.offsetBottom > spec.constraints.dockToFixedHeight
+            }
             updateWindowConfig { config ->
                 when (spec) {
-                     is ImeWindowSpec.Fixed -> {
-                         keepEnabled = true
-                         config.copy(fixedProps = config.fixedProps.plus(spec.fixedMode to spec.props))
-                     }
+                    is ImeWindowSpec.Fixed -> {
+                        config.copy(fixedProps = config.fixedProps.plus(spec.fixedMode to spec.props))
+                    }
                     is ImeWindowSpec.Floating -> {
-                        if (spec.props.offsetBottom <= spec.constraints.dockToFixedHeight) {
-                            keepEnabled = false
-                            config.copy(mode = ImeWindowMode.FIXED)
-                        } else {
-                            keepEnabled = true
+                        if (keepEnabled) {
                             config.copy(floatingProps = config.floatingProps.plus(spec.floatingMode to spec.props))
+                        } else {
+                            config.copy(mode = ImeWindowMode.FIXED)
                         }
                     }
                 }
@@ -502,15 +502,13 @@ class ImeWindowController(
         }
 
         fun endResizeGesture(spec: ImeWindowSpec) {
-            var keepEnabled = true
+            val keepEnabled = true
             updateWindowConfig { config ->
                 when (spec) {
                     is ImeWindowSpec.Fixed -> {
-                        keepEnabled = true
                         config.copy(fixedProps = config.fixedProps.plus(spec.fixedMode to spec.props))
                     }
                     is ImeWindowSpec.Floating -> {
-                        keepEnabled = true
                         config.copy(floatingProps = config.floatingProps.plus(spec.floatingMode to spec.props))
                     }
                 }

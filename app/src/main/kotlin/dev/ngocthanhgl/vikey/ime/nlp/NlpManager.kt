@@ -73,8 +73,11 @@ class NlpManager(context: Context) {
         )
     }
     private var currentShiftState: dev.ngocthanhgl.vikey.ime.input.InputShiftState = dev.ngocthanhgl.vikey.ime.input.InputShiftState.UNSHIFTED
+    @Volatile
     private var hasPendingComposition = false
+    @Volatile
     private var lastPrefix: String? = null
+    @Volatile
     private var lastShiftSeen: dev.ngocthanhgl.vikey.ime.input.InputShiftState? = null
 
     fun hasPendingCompositionSuggestion(): Boolean = hasPendingComposition
@@ -171,7 +174,8 @@ class NlpManager(context: Context) {
             ?: FallbackNlpProvider
     }
 
-    private var cachedForcesSuggestionOn: Boolean? = null
+    @Volatile
+    private var cachedForcesSuggestionOn = false
 
     private suspend fun getSuggestionProvider(subtype: Subtype): SuggestionProvider {
         return providers.withLock { it[subtype.nlpProviders.suggestion] }?.provider as? SuggestionProvider
@@ -223,13 +227,8 @@ class NlpManager(context: Context) {
         )
     }
 
-    fun providerForcesSuggestionOn(subtype: Subtype): Boolean {
-        if (cachedForcesSuggestionOn == null) {
-            cachedForcesSuggestionOn = runBlocking {
-                getSuggestionProvider(subtype).forcesSuggestionOn
-            }
-        }
-        return cachedForcesSuggestionOn!!
+    fun providerForcesSuggestionOn(@Suppress("UNUSED_PARAMETER") subtype: Subtype): Boolean {
+        return cachedForcesSuggestionOn
     }
 
     fun isSuggestionOn(): Boolean {
@@ -262,9 +261,13 @@ class NlpManager(context: Context) {
                 allowPossiblyOffensive = !prefs.suggestion.blockPossiblyOffensive.get(),
                 isPrivateSession = keyboardManager.activeState.isIncognitoMode,
             )
-            val stored = internalSuggestions.get()
-            val (prevTime, _) = stored
-            if (prevTime < reqTime) internalSuggestions.set(reqTime to suggestions)
+            while (true) {
+                val stored = internalSuggestions.get()
+                val (prevTime, _) = stored
+                if (prevTime < reqTime) {
+                    if (internalSuggestions.compareAndSet(stored, reqTime to suggestions)) break
+                } else break
+            }
             assembleCandidates()
             hasPendingComposition = false
         }
@@ -302,13 +305,16 @@ class NlpManager(context: Context) {
                     )
                 }
             }
-            val stored = internalSuggestions.get()
-            val (prevTime, _) = stored
-            if (prevTime < reqTime) {
-                internalSuggestions.set(reqTime to buildList {
-                    addAll(emojiSuggestions)
-                    addAll(suggestions)
-                })
+            while (true) {
+                val stored = internalSuggestions.get()
+                val (prevTime, _) = stored
+                if (prevTime < reqTime) {
+                    val newValue = reqTime to buildList {
+                        addAll(emojiSuggestions)
+                        addAll(suggestions)
+                    }
+                    if (internalSuggestions.compareAndSet(stored, newValue)) break
+                } else break
             }
             assembleCandidates()
         }
@@ -322,18 +328,20 @@ class NlpManager(context: Context) {
 
     fun recaseSuggestions(shiftState: dev.ngocthanhgl.vikey.ime.input.InputShiftState) {
         currentShiftState = shiftState
-        val current = internalSuggestions.get()
-        val recased = current.second.map { candidate ->
-            if (candidate is WordSuggestionCandidate) {
-                candidate.copy(
-                    text = recase(candidate.text.toString(), shiftState),
-                    shiftState = shiftState,
-                )
-            } else {
-                candidate
+        while (true) {
+            val current = internalSuggestions.get()
+            val recased = current.second.map { candidate ->
+                if (candidate is WordSuggestionCandidate) {
+                    candidate.copy(
+                        text = recase(candidate.text.toString(), shiftState),
+                        shiftState = shiftState,
+                    )
+                } else {
+                    candidate
+                }
             }
+            if (internalSuggestions.compareAndSet(current, current.first to recased)) break
         }
-        internalSuggestions.set(current.first to recased)
         scope.launch { assembleCandidates() }
     }
 
@@ -350,6 +358,7 @@ class NlpManager(context: Context) {
         scope.launch { assembleCandidates() }
     }
 
+    @Volatile
     private var suppressNextAutoCommit = false
 
     fun suppressNextAutoCommit() {
@@ -473,7 +482,7 @@ class NlpManager(context: Context) {
         }
 
         suspend fun destroyIfNecessary() {
-            if (isInstanceAlive.getAndSet(true)) provider.destroy()
+            if (isInstanceAlive.getAndSet(false)) provider.destroy()
         }
     }
 

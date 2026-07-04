@@ -47,7 +47,7 @@ class AutocorrectEngine(private val seedWords: Set<String>) {
         val qwenPart = (qwenScore ?: 0.5) * 0.4
         val edPart = edScore * 0.4
         val proxPart = prox * 0.2
-        val lenPart = lengthRatio.coerceIn(0.0, 1.0) * 0.1
+        val lenPart = lengthRatio.coerceIn(0.0, 1.0) * 0.0
 
         return qwenPart + edPart + proxPart + lenPart
     }
@@ -144,16 +144,16 @@ class AutocorrectEngine(private val seedWords: Set<String>) {
 
         private fun toBase(c: Char): Char = when (c.lowercaseChar()) {
             'a', 'á', 'à', 'ả', 'ã', 'ạ' -> 'a'
-            'ă', 'ắ', 'ằ', 'ẳ', 'ẵ', 'ặ' -> 'a'
-            'â', 'ấ', 'ầ', 'ẩ', 'ẫ', 'ậ' -> 'a'
+            'ă', 'ắ', 'ằ', 'ẳ', 'ẵ', 'ặ' -> 'ă'
+            'â', 'ấ', 'ầ', 'ẩ', 'ẫ', 'ậ' -> 'â'
             'e', 'é', 'è', 'ẻ', 'ẽ', 'ẹ' -> 'e'
-            'ê', 'ế', 'ề', 'ể', 'ễ', 'ệ' -> 'e'
+            'ê', 'ế', 'ề', 'ể', 'ễ', 'ệ' -> 'ê'
             'i', 'í', 'ì', 'ỉ', 'ĩ', 'ị' -> 'i'
             'o', 'ó', 'ò', 'ỏ', 'õ', 'ọ' -> 'o'
-            'ô', 'ố', 'ồ', 'ổ', 'ỗ', 'ộ' -> 'o'
-            'ơ', 'ớ', 'ờ', 'ở', 'ỡ', 'ợ' -> 'o'
+            'ô', 'ố', 'ồ', 'ổ', 'ỗ', 'ộ' -> 'ô'
+            'ơ', 'ớ', 'ờ', 'ở', 'ỡ', 'ợ' -> 'ơ'
             'u', 'ú', 'ù', 'ủ', 'ũ', 'ụ' -> 'u'
-            'ư', 'ứ', 'ừ', 'ử', 'ữ', 'ự' -> 'u'
+            'ư', 'ứ', 'ừ', 'ử', 'ữ', 'ự' -> 'ư'
             'y', 'ý', 'ỳ', 'ỷ', 'ỹ', 'ỵ' -> 'y'
             'đ' -> 'd'
             else -> c

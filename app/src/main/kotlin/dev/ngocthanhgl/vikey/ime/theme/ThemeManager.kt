@@ -56,6 +56,7 @@ import org.florisboard.lib.kotlin.io.subDir
 import org.florisboard.lib.kotlin.io.subFile
 import org.florisboard.lib.snygg.SnyggStylesheet
 import org.florisboard.lib.snygg.value.SnyggStaticColorValue
+import java.io.File
 import java.time.LocalTime
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
@@ -135,9 +136,13 @@ class ThemeManager(context: Context) {
         if (themeConfig == null) {
             return@withLock
         }
-        // TODO: loaded dir is implemented already...
-        // TODO: this leaks the loaded dir, but at least the state is not kaput from compose viewpoint
-        val loadedDir = appContext.cacheDir.subDir("loaded").subDir(UUID.randomUUID().toString())
+        val loadedParent = File(appContext.cacheDir, "loaded")
+        if (loadedParent.exists()) {
+            loadedParent.listFiles().orEmpty().forEach { dir ->
+                if (dir.isDirectory) dir.deleteRecursively()
+            }
+        }
+        val loadedDir = loadedParent.subDir(UUID.randomUUID().toString())
         runCatching {
             loadedDir.mkdirs()
             loadedDir.deleteContentsRecursively()

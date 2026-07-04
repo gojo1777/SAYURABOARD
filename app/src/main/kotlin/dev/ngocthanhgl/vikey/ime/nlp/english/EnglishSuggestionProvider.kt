@@ -6,7 +6,13 @@ import dev.ngocthanhgl.vikey.ime.editor.EditorContent
 import dev.ngocthanhgl.vikey.ime.nlp.SuggestionCandidate
 import dev.ngocthanhgl.vikey.ime.nlp.SuggestionProvider
 import dev.ngocthanhgl.vikey.ime.nlp.WordSuggestionCandidate
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -20,8 +26,10 @@ class EnglishSuggestionProvider(private val context: Context) : SuggestionProvid
 
     private val wordFrequencies = mutableMapOf<String, Int>()
     private val sortedWords = mutableListOf<String>()
+    private val prefixMap = mutableMapOf<String, MutableList<String>>()
     private val personalDict = mutableMapOf<String, Int>()
     private var personalDirty = false
+    private val bgScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override val providerId = ProviderId
 
@@ -29,6 +37,16 @@ class EnglishSuggestionProvider(private val context: Context) : SuggestionProvid
         withContext(Dispatchers.IO) {
             loadWords()
             loadPersonalDict()
+        }
+        startPeriodicSave()
+    }
+
+    private fun startPeriodicSave() {
+        bgScope.launch {
+            while (isActive) {
+                delay(30_000)
+                if (personalDirty) savePersonalDict()
+            }
         }
     }
 
@@ -43,6 +61,11 @@ class EnglishSuggestionProvider(private val context: Context) : SuggestionProvid
                 }
             }
             sortedWords.addAll(wordFrequencies.entries.sortedByDescending { it.value }.map { it.key })
+            for (word in sortedWords) {
+                for (i in 1..word.length.coerceAtMost(6)) {
+                    prefixMap.getOrPut(word.take(i)) { mutableListOf() }.add(word)
+                }
+            }
         } catch (_: Exception) {}
     }
 
@@ -85,6 +108,7 @@ class EnglishSuggestionProvider(private val context: Context) : SuggestionProvid
         allowPossiblyOffensive: Boolean,
         isPrivateSession: Boolean,
     ): List<SuggestionCandidate> {
+        if (isPrivateSession) return emptyList()
         val textBefore = content.textBeforeSelection
         val prefix = textBefore.substringAfterLast(' ').substringAfter('\n').lowercase()
         if (prefix.isEmpty()) return emptyList()
@@ -92,16 +116,18 @@ class EnglishSuggestionProvider(private val context: Context) : SuggestionProvid
         val found = mutableSetOf<String>()
         val candidates = mutableListOf<SuggestionCandidate>()
 
-        for (word in sortedWords) {
-            if (word.startsWith(prefix) && found.add(word)) {
+        for (word in prefixMap[prefix].orEmpty()) {
+            if (found.add(word)) {
                 candidates.add(WordSuggestionCandidate(word))
                 if (candidates.size >= maxCandidateCount) break
             }
         }
-        for (word in personalDict.keys) {
-            if (word.startsWith(prefix) && found.add(word)) {
-                candidates.add(WordSuggestionCandidate(word))
-                if (candidates.size >= maxCandidateCount) break
+        if (candidates.size < maxCandidateCount) {
+            for (word in personalDict.keys) {
+                if (word.startsWith(prefix) && found.add(word)) {
+                    candidates.add(WordSuggestionCandidate(word))
+                    if (candidates.size >= maxCandidateCount) break
+                }
             }
         }
         return candidates
@@ -109,7 +135,6 @@ class EnglishSuggestionProvider(private val context: Context) : SuggestionProvid
 
     override suspend fun notifySuggestionAccepted(subtype: Subtype, candidate: SuggestionCandidate) {
         recordWord(candidate.text.toString())
-        savePersonalDict()
     }
 
     override suspend fun notifySuggestionReverted(subtype: Subtype, candidate: SuggestionCandidate) {}
@@ -128,6 +153,7 @@ class EnglishSuggestionProvider(private val context: Context) : SuggestionProvid
     }
 
     override suspend fun destroy() {
-        savePersonalDict()
+        if (personalDirty) savePersonalDict()
+        bgScope.cancel()
     }
 }

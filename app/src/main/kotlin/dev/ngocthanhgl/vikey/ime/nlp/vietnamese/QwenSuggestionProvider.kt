@@ -20,6 +20,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.pow
 
 class QwenSuggestionProvider(private val context: Context) : SuggestionProvider {
@@ -59,35 +61,39 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         fun getInstance(): QwenSuggestionProvider? = currentInstance
     }
 
+    private val modelLock = Any()
+    @Volatile
     private var modelPtr = 0L
+    @Volatile
     private var natLoaded = false
+    @Volatile
     private var natLoading = false
 
     private data class PersonalWord(val count: Int, val lastUsedTs: Long)
     private data class DampedWord(val dampCount: Int = 0, val lastDampedTs: Long = 0)
 
-    private val personalDicts = mutableMapOf<String, MutableMap<String, PersonalWord>>()
-    private fun pd(lang: String): MutableMap<String, PersonalWord> =
-        personalDicts.getOrPut(lang) { mutableMapOf() }
+    private val personalDicts = ConcurrentHashMap<String, ConcurrentHashMap<String, PersonalWord>>()
+    private fun pd(lang: String): ConcurrentHashMap<String, PersonalWord> =
+        personalDicts.computeIfAbsent(lang) { ConcurrentHashMap() }
     private fun langFor(subtype: Subtype?): String =
         if (subtype?.primaryLocale?.language == "en") "en" else "vi"
-    private val dampedWords = mutableMapOf<String, DampedWord>()
+    private val dampedWords = ConcurrentHashMap<String, DampedWord>()
     private var personalDirty = false
     private var learnCounter = 0
     private var lastTopSuggestion: String? = null
 
-    private val seedWords = mutableSetOf<String>()
-    private val seedWordFrequencies = mutableMapOf<String, Int>()
-    private val enWordFrequencies = mutableMapOf<String, Int>()
+    private val seedWords = ConcurrentHashMap.newKeySet<String>()
+    private val seedWordFrequencies = ConcurrentHashMap<String, Int>()
+    private val enWordFrequencies = ConcurrentHashMap<String, Int>()
     private var prefixTrie: Map<String, List<String>> = mapOf()
     private var useTrie = false
-    private var bigrams = mutableMapOf<String, MutableMap<String, Int>>()
-    private var trigrams = mutableMapOf<String, MutableMap<String, Int>>()
+    private var bigrams = ConcurrentHashMap<String, ConcurrentHashMap<String, Int>>()
+    private var trigrams = ConcurrentHashMap<String, ConcurrentHashMap<String, Int>>()
     private var ngramDirty = false
     private var lastTextLen = 0
     private var pasteUntil = 0L
-    private val discourseBuffer = mutableListOf<String>()
-    private val phraseMap = mutableMapOf<String, List<String>>()
+    private val discourseBuffer = Collections.synchronizedList(mutableListOf<String>())
+    private val phraseMap = ConcurrentHashMap<String, List<String>>()
     private val suggestionCache = LruCache<String, List<Pair<String, Double>>>(50)
 
     private val bgScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -383,8 +389,10 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
                 val file = modelFile()
                 if (file != null) {
                     val t0 = System.currentTimeMillis()
-                    modelPtr = QwenNatives.open(file.absolutePath)
-                    natLoaded = modelPtr != 0L
+                    synchronized(modelLock) {
+                        modelPtr = QwenNatives.open(file.absolutePath)
+                        natLoaded = modelPtr != 0L
+                    }
                     flogDebug { "Qwen: load ptr=$modelPtr ${System.currentTimeMillis() - t0}ms" }
                 }
             } catch (e: Exception) {
@@ -405,12 +413,14 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
     }
 
     fun removeModel() {
-        if (modelPtr != 0L) {
-            QwenNatives.close(modelPtr)
-            modelPtr = 0L
+        synchronized(modelLock) {
+            if (modelPtr != 0L) {
+                QwenNatives.close(modelPtr)
+                modelPtr = 0L
+            }
+            natLoaded = false
+            natLoading = false
         }
-        natLoaded = false
-        natLoading = false
         modelFile()?.delete()
         flogDebug { "Qwen: model removed" }
     }
@@ -534,11 +544,11 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         for (i in 0 until recent.size - 1) {
             val w1 = recent[i]
             val w2 = recent[i + 1]
-            val bi = bigrams.getOrPut(w1) { mutableMapOf() }
+            val bi = bigrams.computeIfAbsent(w1) { ConcurrentHashMap() }
             bi[w2] = (bi[w2] ?: 0).coerceAtMost(254) + 1
             if (i + 2 < recent.size) {
                 val w3 = recent[i + 2]
-                val tri = trigrams.getOrPut("$w1|$w2") { mutableMapOf() }
+                val tri = trigrams.computeIfAbsent("$w1|$w2") { ConcurrentHashMap() }
                 tri[w3] = (tri[w3] ?: 0).coerceAtMost(254) + 1
             }
         }
@@ -638,14 +648,17 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         val scored = mutableMapOf<String, Double>()
         var qwenScored = false
 
-        if (!natLoading && natLoaded && modelPtr != 0L) {
-            val contextText = if (discourseBuffer.isNotEmpty() && textBefore.split(whitespace).size <= 2) {
-                discourseBuffer.joinToString(" ") + " " + textBefore.trimStart()
-            } else {
-                textBefore
-            }
-            val predictions = QwenNatives.predictNext(modelPtr, contextText, limit * 3)
-            if (predictions != null) {
+        val predictions = synchronized(modelLock) {
+            if (natLoaded && modelPtr != 0L) {
+                val contextText = if (discourseBuffer.isNotEmpty() && textBefore.split(whitespace).size <= 2) {
+                    discourseBuffer.joinToString(" ") + " " + textBefore.trimStart()
+                } else {
+                    textBefore
+                }
+                QwenNatives.predictNext(modelPtr, contextText, limit * 3)
+            } else null
+        }
+        if (predictions != null) {
                 qwenScored = true
                 val firstBatch = predictions.take(limit * 2)
                 val startScore = firstBatch.size.toDouble()
@@ -706,7 +719,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
     private fun completeCurrentWord(prefix: String, k: Int, textBefore: String, lang: String = "vi"): List<Pair<String, Double>> {
         val limit = k.coerceIn(1, 15)
         val lcPrefix = prefix.lowercase()
-        val cacheKey = "$lcPrefix|$textBefore.length"
+        val cacheKey = "$lcPrefix|$textBefore|$lang"
         suggestionCache.get(cacheKey)?.let { return it }
 
         val result = doCompleteCurrentWord(prefix, k, textBefore, lang)
@@ -759,9 +772,12 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         val candidates = mutableListOf<Pair<String, Double>>()
         var qwenScored = false
 
-        if (mergedPool.isNotEmpty() && !natLoading && natLoaded && modelPtr != 0L) {
-            val scores = QwenNatives.scoreCandidates(modelPtr, context, mergedPool)
-            if (scores != null && scores.size == mergedPool.size) {
+        val scores = synchronized(modelLock) {
+            if (!natLoading && natLoaded && modelPtr != 0L) {
+                QwenNatives.scoreCandidates(modelPtr, context, mergedPool)
+            } else null
+        }
+        if (scores != null && scores.size == mergedPool.size) {
                 qwenScored = true
                 for (i in mergedPool.indices) {
                     val base = if (autoCorrectOn && !hasMixedAlphaNum) {
@@ -853,8 +869,10 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         if (personalDirty) savePersonalDict()
         if (ngramDirty) saveNgrams()
         saveDiscourseBuffer()
-        if (modelPtr != 0L) QwenNatives.close(modelPtr)
-        modelPtr = 0L
-        natLoaded = false
+        synchronized(modelLock) {
+            if (modelPtr != 0L) QwenNatives.close(modelPtr)
+            modelPtr = 0L
+            natLoaded = false
+        }
     }
 }
