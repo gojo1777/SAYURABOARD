@@ -19,7 +19,6 @@ package dev.ngocthanhgl.vikey.ime.popup
 import android.content.Context
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -442,7 +441,7 @@ class PopupUiController(
             FlorisImeUi.Attr.Mode to evaluator.keyboard.mode.toString(),
             FlorisImeUi.Attr.ShiftState to evaluator.state.inputShiftState.toString(),
         )
-        val popupAnim = remember { spring<Float>(dampingRatio = 0.6f, stiffness = 400f) }
+        val popupAnim = remember { tween<Float>(0) }
         val popupFadeOut = remember { tween<Float>(80) }
         AnimatedContent(
             targetState = baseRenderInfo,
