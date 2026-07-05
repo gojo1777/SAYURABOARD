@@ -18,6 +18,7 @@ package dev.ngocthanhgl.vikey.ime.text.gestures
 
 import android.content.Context
 import dev.ngocthanhgl.vikey.app.FlorisPreferenceStore
+import dev.ngocthanhgl.vikey.editorInstance
 import dev.ngocthanhgl.vikey.ime.nlp.WordSuggestionCandidate
 import dev.ngocthanhgl.vikey.ime.text.keyboard.TextKey
 import dev.ngocthanhgl.vikey.keyboardManager
@@ -28,7 +29,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.min
 
 /**
  * Handles the [GlideTypingClassifier]. Basically responsible for linking [GlideTypingGesture.Detector]
@@ -43,6 +43,7 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     private val keyboardManager by context.keyboardManager()
     private val nlpManager by context.nlpManager()
     private val subtypeManager by context.subtypeManager()
+    private val editorInstance by context.editorInstance()
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var glideTypingClassifier = StatisticalGlideTypingClassifier(context)
@@ -94,21 +95,30 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
         }
 
         scope.launch(Dispatchers.Default) {
-            val suggestions = glideTypingClassifier.getSuggestions(MAX_SUGGESTION_COUNT, true)
+            val rawSuggestions = glideTypingClassifier.getSuggestions(MAX_SUGGESTION_COUNT, true)
+            if (rawSuggestions.isEmpty()) {
+                withContext(Dispatchers.Main) { callback.invoke(false) }
+                return@launch
+            }
+            val textBefore = editorInstance.activeContent.textBeforeSelection
+            val reranked = nlpManager.rerankGlideSuggestions(
+                subtypeManager.activeSubtype, textBefore, rawSuggestions
+            )
 
             withContext(Dispatchers.Main) {
                 val suggestionList = buildList {
-                    suggestions.subList(
-                        1.coerceAtMost(min(commit.compareTo(false), suggestions.size)),
-                        maxSuggestionsToShow.coerceAtMost(suggestions.size)
+                    val from = if (commit) 1 else 0
+                    reranked.subList(
+                        from.coerceAtMost(reranked.size),
+                        maxSuggestionsToShow.coerceAtMost(reranked.size)
                     ).map { keyboardManager.fixCase(it) }.forEach {
                         add(WordSuggestionCandidate(it, confidence = 1.0))
                     }
                 }
 
                 nlpManager.suggestDirectly(suggestionList)
-                if (commit && suggestions.isNotEmpty()) {
-                    keyboardManager.commitGesture(suggestions.first())
+                if (commit && reranked.isNotEmpty()) {
+                    keyboardManager.commitGesture(reranked.first())
                 }
                 callback.invoke(true)
             }

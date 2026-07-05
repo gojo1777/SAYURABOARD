@@ -855,6 +855,39 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         return false
     }
 
+    override suspend fun rerankGlideSuggestions(
+        subtype: Subtype,
+        textBefore: String,
+        candidates: List<String>,
+    ): List<String> {
+        if (candidates.isEmpty() || !QwenNatives.isAvailable) return candidates
+        val context = buildString {
+            val ctx = textBefore.trimEnd()
+            append(ctx)
+            if (ctx.isNotEmpty()) append(' ')
+        }
+        val scores = synchronized(modelLock) {
+            if (!natLoading && natLoaded && modelPtr != 0L) {
+                QwenNatives.scoreCandidates(modelPtr, context, candidates.toTypedArray())
+            } else null
+        }
+        if (scores == null || scores.size != candidates.size) return candidates
+        val min = scores.minOrNull() ?: 0f
+        val max = scores.maxOrNull() ?: 0f
+        val range = max - min
+        return candidates.indices
+            .map { i ->
+                val clean = when {
+                    scores[i].isNaN() || scores[i].isInfinite() -> 0.0
+                    else -> scores[i].toDouble()
+                }
+                val norm = if (range > 0f) (clean - min.toDouble()) / range.toDouble() else 0.5
+                candidates[i] to norm
+            }
+            .sortedByDescending { it.second }
+            .map { it.first }
+    }
+
     override suspend fun getListOfWords(subtype: Subtype): List<String> {
         val lang = langFor(subtype)
         return if (lang == "en")

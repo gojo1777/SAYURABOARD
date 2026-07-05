@@ -198,6 +198,23 @@ interface SuggestionProvider : NlpProvider {
     suspend fun getFrequencyForWord(subtype: Subtype, word: String): Double
 
     /**
+     * Re-ranks glide typing candidates using the LLM model for context-aware ordering.
+     *
+     * @param subtype Information about the current subtype.
+     * @param textBefore The text before the cursor position.
+     * @param candidates The list of candidate words from the glide classifier, in original
+     *  order (best geometric match first).
+     *
+     * @return The re-ranked list of candidate words. Default implementation returns [candidates]
+     *  unchanged.
+     */
+    suspend fun rerankGlideSuggestions(
+        subtype: Subtype,
+        textBefore: String,
+        candidates: List<String>,
+    ): List<String> = candidates
+
+    /**
      * When initializing composing text given a new context, the suggestion engine determines the composing range.
      * The default behavior gets the last word according to the current subtype's primaryLocale.
      * @param subtype The current subtype used to determine word or character boundary.
@@ -290,6 +307,12 @@ object FallbackNlpProvider : SpellingProvider, SuggestionProvider {
     override suspend fun getFrequencyForWord(subtype: Subtype, word: String): Double {
         return 0.0
     }
+
+    override suspend fun rerankGlideSuggestions(
+        subtype: Subtype,
+        textBefore: String,
+        candidates: List<String>,
+    ): List<String> = candidates
 
     override suspend fun destroy() {
         // Do nothing

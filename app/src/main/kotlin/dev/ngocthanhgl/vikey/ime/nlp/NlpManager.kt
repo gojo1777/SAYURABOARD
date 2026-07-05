@@ -393,6 +393,10 @@ class NlpManager(context: Context) {
         return runBlocking { getSuggestionProvider(subtype).getFrequencyForWord(subtype, word) }
     }
 
+    fun rerankGlideSuggestions(subtype: Subtype, textBefore: String, candidates: List<String>): List<String> {
+        return runBlocking { getSuggestionProvider(subtype).rerankGlideSuggestions(subtype, textBefore, candidates) }
+    }
+
     fun getFrequenciesForWords(subtype: Subtype, words: List<String>): Map<String, Double> {
         return runBlocking {
             val provider = getSuggestionProvider(subtype)
