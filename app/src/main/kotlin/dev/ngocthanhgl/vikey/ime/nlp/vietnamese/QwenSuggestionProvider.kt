@@ -501,8 +501,8 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
 
     /** Whitelist of GGUF architectures known to work with libqwen_jni.so. */
     private val SUPPORTED_ARCHS = setOf(
-        "Qwen2ForCausalLM",
-        "Qwen2.5ForCausalLM",
+        "qwen2", "Qwen2ForCausalLM",
+        "qwen2.5", "Qwen2.5ForCausalLM",
     )
 
     /**
