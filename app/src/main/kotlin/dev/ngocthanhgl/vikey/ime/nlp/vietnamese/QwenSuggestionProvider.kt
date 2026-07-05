@@ -103,6 +103,9 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
     private val _modelLoading = MutableStateFlow(false)
     val modelLoading = _modelLoading.asStateFlow()
 
+    private val _modelError = MutableStateFlow<String?>(null)
+    val modelError = _modelError.asStateFlow()
+
     override val providerId = ProviderId
 
     override suspend fun create() {
@@ -382,6 +385,149 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
 
     fun getModelName(): String? = modelFile()?.name
 
+    private object GgufFormat {
+        private const val MAGIC = 0x46554747 // "GGUF" little-endian as int
+        private const val KEY_ARCH = "general.architecture"
+        private const val KEY_NAME = "general.name"
+        private const val KEY_FILE_TYPE = "general.file.type"
+
+        private const val TYPE_STRING = 8
+
+        /** Parsed GGUF header metadata. */
+        data class Header(
+            val architecture: String?,
+            val name: String?,
+            val fileType: Int?,
+        )
+
+        /**
+         * Reads the GGUF header from [file] and returns parsed metadata.
+         * Returns null if the file is not a valid GGUF or cannot be read.
+         */
+        fun read(file: File): Header? {
+            try {
+                val raf = java.io.RandomAccessFile(file, "r")
+                val headerBytes = ByteArray(minOf(file.length(), 8192L).toInt())
+                raf.readFully(headerBytes)
+                raf.close()
+                val data = headerBytes
+                if (data.size < 24) return null
+                var off = 0
+                val magic = readI32(data, off); off += 4
+                if (magic != MAGIC) return null
+                val version = readI32(data, off); off += 4
+                if (version < 1 || version > 3) return null
+                off += 8 // skip tensor count
+                val kvCount = readI64(data, off); off += 8
+                var arch: String? = null
+                var name: String? = null
+                var fileType: Int? = null
+                for (i in 0 until kvCount) {
+                    val keyLen = readI64(data, off); off += 8
+                    if (off + keyLen.toInt() > data.size) break
+                    val key = String(data, off, keyLen.toInt(), Charsets.UTF_8); off += keyLen.toInt()
+                    if (off + 4 > data.size) break
+                    val valueType = readI32(data, off); off += 4
+                    when (valueType) {
+                        TYPE_STRING -> {
+                            val strLen = readI64(data, off); off += 8
+                            if (off + strLen.toInt() > data.size) break
+                            val strVal = String(data, off, strLen.toInt(), Charsets.UTF_8); off += strLen.toInt()
+                            when (key) {
+                                KEY_ARCH -> arch = strVal
+                                KEY_NAME -> name = strVal
+                            }
+                        }
+                        4, 5, 10, 11 -> { // uint32, int32, uint64, int64
+                            val intVal = when (valueType) {
+                                4 -> readI32(data, off).toLong() and 0xFFFFFFFFL
+                                5 -> readI32(data, off).toLong()
+                                10 -> readI64(data, off)
+                                11 -> readI64(data, off)
+                                else -> 0L
+                            }
+                            off += if (valueType in listOf(10, 11)) 8 else 4
+                            if (key == KEY_FILE_TYPE) fileType = intVal.toInt()
+                        }
+                        0 -> { off += 1; if (key == KEY_FILE_TYPE) fileType = data[off - 1].toInt() and 0xFF }
+                        6 -> off += 4 // float32, skip
+                        7 -> off += 1 // bool, skip
+                        12 -> off += 8 // float64, skip
+                        9 -> { // array
+                            val arrType = readI32(data, off); off += 4
+                            val arrLen = readI64(data, off); off += 8
+                            for (j in 0 until arrLen) {
+                                when (arrType) {
+                                    8 -> { val sl = readI64(data, off); off += 8 + sl.toInt() }
+                                    0, 1, 7 -> off += 1
+                                    2, 3 -> off += 2
+                                    4, 5, 6 -> off += 4
+                                    10, 11, 12 -> off += 8
+                                    else -> off += 4
+                                }
+                                if (off > data.size) break
+                            }
+                        }
+                        else -> { off += 4 } // skip unknown
+                    }
+                    if (off > data.size) break
+                    if (arch != null && name != null && fileType != null) break
+                }
+                return Header(arch, name, fileType)
+            } catch (e: Exception) {
+                flogDebug { "Qwen: GGUF header read failed: ${e.message}" }
+                return null
+            }
+        }
+
+        private fun readI32(data: ByteArray, off: Int): Int {
+            return (data[off].toInt() and 0xFF) or
+                ((data[off + 1].toInt() and 0xFF) shl 8) or
+                ((data[off + 2].toInt() and 0xFF) shl 16) or
+                ((data[off + 3].toInt() and 0xFF) shl 24)
+        }
+
+        private fun readI64(data: ByteArray, off: Int): Long {
+            return (data[off].toLong() and 0xFF) or
+                ((data[off + 1].toLong() and 0xFF) shl 8) or
+                ((data[off + 2].toLong() and 0xFF) shl 16) or
+                ((data[off + 3].toLong() and 0xFF) shl 24) or
+                ((data[off + 4].toLong() and 0xFF) shl 32) or
+                ((data[off + 5].toLong() and 0xFF) shl 40) or
+                ((data[off + 6].toLong() and 0xFF) shl 48) or
+                ((data[off + 7].toLong() and 0xFF) shl 56)
+        }
+    }
+
+    /** Whitelist of GGUF architectures known to work with libqwen_jni.so. */
+    private val SUPPORTED_ARCHS = setOf(
+        "Qwen2ForCausalLM",
+        "Qwen2.5ForCausalLM",
+    )
+
+    /**
+     * Validates that [file] is a compatible GGUF model.
+     * Returns null on success, or an error message string on failure.
+     */
+    private fun validateGguf(file: File): String? {
+        val header = GgufFormat.read(file) ?: return "Cannot read GGUF header"
+        val arch = header.architecture
+        if (arch == null) return "Missing model architecture in GGUF header"
+        if (arch !in SUPPORTED_ARCHS) {
+            return "Unsupported model architecture '$arch'. Supported: ${SUPPORTED_ARCHS.joinToString(", ")}. " +
+                "Use Qwen2.5 0.5B base model (not Instruct/Chat)."
+        }
+        val name = header.name
+        if (name != null) {
+            val lc = name.lowercase()
+            if (lc.contains("instruct") || lc.contains("chat")) {
+                return "Instruct/Chat variant detected ('$name'). Use the BASE model (non-instruct) for suggestions."
+            }
+        }
+        flogDebug { "Qwen: GGUF validated arch=$arch name=$name fileType=${header.fileType}" }
+        return null
+    }
+
     private fun loadModelBg() {
         if (!QwenNatives.isAvailable) {
             flogDebug { "Qwen: native lib not available" }
@@ -390,19 +536,30 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         if (natLoading || natLoaded) return
         natLoading = true
         _modelLoading.value = true
+        _modelError.value = null
         bgScope.launch {
             try {
                 val file = modelFile()
                 if (file != null) {
-                    val t0 = System.currentTimeMillis()
-                    synchronized(modelLock) {
-                        modelPtr = QwenNatives.open(file.absolutePath)
-                        natLoaded = modelPtr != 0L
+                    val validationError = validateGguf(file)
+                    if (validationError != null) {
+                        flogDebug { "Qwen: model validation failed: $validationError" }
+                        _modelError.value = validationError
+                    } else {
+                        val t0 = System.currentTimeMillis()
+                        synchronized(modelLock) {
+                            modelPtr = QwenNatives.open(file.absolutePath)
+                            natLoaded = modelPtr != 0L
+                        }
+                        if (!natLoaded) {
+                            _modelError.value = "Native library rejected the model"
+                        }
+                        flogDebug { "Qwen: load ptr=$modelPtr ${System.currentTimeMillis() - t0}ms" }
                     }
-                    flogDebug { "Qwen: load ptr=$modelPtr ${System.currentTimeMillis() - t0}ms" }
                 }
             } catch (e: Exception) {
                 flogDebug { "Qwen: model load failed: ${e.message}" }
+                _modelError.value = "Load failed: ${e.message}"
             }
             natLoading = false
             _modelLoading.value = false
@@ -422,6 +579,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
             natLoaded = false
             natLoading = false
         }
+        _modelError.value = null
         flogDebug { "Qwen: model unloaded" }
     }
 

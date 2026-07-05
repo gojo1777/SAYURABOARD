@@ -20,6 +20,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
@@ -470,6 +472,7 @@ fun SubtypeEditorScreen(id: Long?) {
                 val importError = remember { mutableStateOf<String?>(null) }
                 val provider = QwenSuggestionProvider.getInstance()
                 val modelLoading by provider?.modelLoading?.collectAsState() ?: remember { mutableStateOf(false) }
+                val modelError by provider?.modelError?.collectAsState() ?: remember { mutableStateOf<String?>(null) }
 
                 val importLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
@@ -508,11 +511,12 @@ fun SubtypeEditorScreen(id: Long?) {
                                 Text("Loading model…", style = MaterialTheme.typography.bodySmall)
                             }
                         } else if (modelExists) {
+                            val hasError = modelError != null
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Rounded.CheckCircle,
+                                    imageVector = if (hasError) Icons.Rounded.Warning else Icons.Rounded.CheckCircle,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = if (hasError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(Modifier.width(4.dp))
@@ -521,6 +525,15 @@ fun SubtypeEditorScreen(id: Long?) {
                                     style = MaterialTheme.typography.bodySmall,
                                     modifier = Modifier.weight(1f),
                                 )
+                                if (hasError) {
+                                    IconButton(onClick = { importLauncher.launch("*/*") }) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Refresh,
+                                            contentDescription = "Replace model",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
                                 IconButton(onClick = {
                                     scope.launch {
                                         provider?.removeModel()
@@ -533,6 +546,14 @@ fun SubtypeEditorScreen(id: Long?) {
                                         tint = MaterialTheme.colorScheme.error,
                                     )
                                 }
+                            }
+                            if (hasError) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = modelError ?: "",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
                             }
                         } else {
                             Column {
