@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -97,6 +99,9 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
     private val suggestionCache = LruCache<String, List<Pair<String, Double>>>(50)
 
     private val bgScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    private val _modelLoading = MutableStateFlow(false)
+    val modelLoading = _modelLoading.asStateFlow()
 
     override val providerId = ProviderId
 
@@ -384,6 +389,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         }
         if (natLoading || natLoaded) return
         natLoading = true
+        _modelLoading.value = true
         bgScope.launch {
             try {
                 val file = modelFile()
@@ -399,6 +405,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
                 flogDebug { "Qwen: model load failed: ${e.message}" }
             }
             natLoading = false
+            _modelLoading.value = false
         }
     }
 
@@ -406,13 +413,7 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
         create()
     }
 
-    fun reloadModel() {
-        if (natLoading || natLoaded) return
-        if (!QwenNatives.isAvailable) return
-        loadModelBg()
-    }
-
-    fun removeModel() {
+    fun unloadModel() {
         synchronized(modelLock) {
             if (modelPtr != 0L) {
                 QwenNatives.close(modelPtr)
@@ -421,6 +422,17 @@ class QwenSuggestionProvider(private val context: Context) : SuggestionProvider 
             natLoaded = false
             natLoading = false
         }
+        flogDebug { "Qwen: model unloaded" }
+    }
+
+    fun reloadModel() {
+        if (!QwenNatives.isAvailable) return
+        if (natLoaded) unloadModel()
+        loadModelBg()
+    }
+
+    fun removeModel() {
+        unloadModel()
         modelFile()?.delete()
         flogDebug { "Qwen: model removed" }
     }

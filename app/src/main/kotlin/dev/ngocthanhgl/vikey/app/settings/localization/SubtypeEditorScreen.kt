@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
@@ -466,12 +467,16 @@ fun SubtypeEditorScreen(id: Long?) {
 
                 val modelFile = remember { mutableStateOf(scanModel()) }
                 val modelExists = modelFile.value != null
+                val importError = remember { mutableStateOf<String?>(null) }
+                val provider = QwenSuggestionProvider.getInstance()
+                val modelLoading by provider?.modelLoading?.collectAsState() ?: remember { mutableStateOf(false) }
 
                 val importLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.GetContent()
                 ) { uri ->
                     if (uri != null) {
                         scope.launch {
+                            importError.value = null
                             try {
                                 context.contentResolver.openInputStream(uri)?.use { input ->
                                     File(dir, "model.gguf").outputStream().use { output ->
@@ -480,9 +485,13 @@ fun SubtypeEditorScreen(id: Long?) {
                                 }
                                 modelFile.value = scanModel()
                                 if (modelFile.value != null) {
-                                    QwenSuggestionProvider.getInstance()?.reloadModel()
+                                    provider?.unloadModel()
+                                    provider?.reloadModel()
+                                } else {
+                                    importError.value = "Copied file not found or empty"
                                 }
                             } catch (e: Exception) {
+                                importError.value = "Import failed: ${e.message}"
                                 flogDebug { "Import model failed: ${e.message}" }
                             }
                         }
@@ -491,52 +500,68 @@ fun SubtypeEditorScreen(id: Long?) {
 
                 SettingsDivider()
                 SubtypeProperty(stringRes(R.string.subtype_editor__model)) {
-                    if (modelExists) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Rounded.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringRes(R.string.subtype_editor__model_format, "model" to (modelFile.value?.name ?: stringRes(R.string.subtype_editor__unknown))),
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(onClick = {
-                                scope.launch {
-                                    QwenSuggestionProvider.getInstance()?.removeModel()
-                                    modelFile.value = null
-                                }
-                            }) {
+                    Column {
+                        if (modelLoading) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Loading model…", style = MaterialTheme.typography.bodySmall)
+                            }
+                        } else if (modelExists) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Delete,
-                                    contentDescription = stringRes(R.string.subtype_editor__remove_model),
-                                    tint = MaterialTheme.colorScheme.error,
+                                    imageVector = Icons.Rounded.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp),
                                 )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = stringRes(R.string.subtype_editor__model_format, "model" to (modelFile.value?.name ?: stringRes(R.string.subtype_editor__unknown))),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                IconButton(onClick = {
+                                    scope.launch {
+                                        provider?.removeModel()
+                                        modelFile.value = null
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Delete,
+                                        contentDescription = stringRes(R.string.subtype_editor__remove_model),
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            }
+                        } else {
+                            Column {
+                                Button(onClick = { importLauncher.launch("*/*") }) {
+                                    Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringRes(R.string.subtype_editor__select_gguf))
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                OutlinedButton(onClick = {
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("https://github.com/ngocthanhgl/ViKey-Telex/releases/tag/Model")
+                                    )
+                                    context.startActivity(intent)
+                                }) {
+                                    Icon(Icons.Rounded.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(stringRes(R.string.subtype_editor__download_github))
+                                }
                             }
                         }
-                    } else {
-                        Column {
-                            Button(onClick = { importLauncher.launch("application/octet-stream") }) {
-                                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringRes(R.string.subtype_editor__select_gguf))
-                            }
+                        importError.value?.let { err ->
                             Spacer(Modifier.height(4.dp))
-                            OutlinedButton(onClick = {
-                                val intent = android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse("https://github.com/ngocthanhgl/ViKey-Telex/releases/tag/Model")
-                                )
-                                context.startActivity(intent)
-                            }) {
-                                Icon(Icons.Rounded.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text(stringRes(R.string.subtype_editor__download_github))
-                            }
+                            Text(
+                                text = err,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
                 }
