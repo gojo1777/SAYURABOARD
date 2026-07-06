@@ -81,6 +81,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import dev.patrickgold.jetpref.datastore.model.collectAsState
@@ -533,6 +534,7 @@ private fun CropPhotoDialog(
     var blurRadius by remember { mutableFloatStateOf(initialBlur) }
     var displayW by remember { mutableFloatStateOf(0f) }
     var displayH by remember { mutableFloatStateOf(0f) }
+    var imageLayoutSize by remember { mutableStateOf(IntSize.Zero) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -629,6 +631,18 @@ private fun CropPhotoDialog(
                                 offsetX = offsetX.coerceIn(-maxOffX, maxOffX)
                                 offsetY = offsetY.coerceIn(-maxOffY, maxOffY)
                             }
+                            // Re-clamp using actual Image layout size from onGloballyPositioned
+                            val ls = imageLayoutSize
+                            if (ls.width > 0 && ls.height > 0 && dw > 0f && dh > 0f) {
+                                val actualContentW = ls.width.toFloat() * scale
+                                val actualContentH = ls.height.toFloat() * scale
+                                val cropW2 = dw * CROP_WIDTH_FRACTION
+                                val cropH2 = cropW2 / aspectRatio
+                                val maxOffX2 = ((actualContentW - cropW2) / 2f).coerceAtLeast(0f)
+                                val maxOffY2 = ((actualContentH - cropH2) / 2f).coerceAtLeast(0f)
+                                offsetX = offsetX.coerceIn(-maxOffX2, maxOffX2)
+                                offsetY = offsetY.coerceIn(-maxOffY2, maxOffY2)
+                            }
                         }
                     },
                 contentAlignment = Alignment.Center,
@@ -639,6 +653,9 @@ private fun CropPhotoDialog(
                     contentScale = ContentScale.FillWidth,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .onGloballyPositioned { coords ->
+                            imageLayoutSize = coords.size
+                        }
                         .alpha(visibility / 100f)
                         .blur(radius = blurRadius.dp)
                         .graphicsLayer(
