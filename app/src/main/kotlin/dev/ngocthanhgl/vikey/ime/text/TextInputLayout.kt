@@ -44,10 +44,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.ui.unit.Dp
@@ -116,8 +114,6 @@ fun TextInputLayout(
 
     var photoWindowPos by remember { mutableStateOf(Offset.Zero) }
     var photoBoxSize by remember { mutableStateOf(IntSize.Zero) }
-    var imeSize by remember { mutableStateOf(IntSize.Zero) }
-    val density = LocalDensity.current
 
     val gradBitmap = remember(gradPresetId, photoBoxSize) {
         if (gradPresetId.isNotBlank() && photoBoxSize.width > 0 && photoBoxSize.height > 0) {
@@ -183,17 +179,15 @@ fun TextInputLayout(
             .onGloballyPositioned { coords ->
                 photoWindowPos = coords.positionInWindow()
                 photoBoxSize = coords.size
-            }
-            .onSizeChanged { imeSize = it },
+            },
     ) {
-        if ((bgPhotoPath.isNotBlank() || gradPresetId.isNotBlank()) && bgPhotoBitmap != null && imeSize != IntSize.Zero) {
+        if ((bgPhotoPath.isNotBlank() || gradPresetId.isNotBlank()) && bgPhotoBitmap != null) {
             Image(
                 bitmap = bgPhotoBitmap,
                 contentDescription = null,
                 contentScale = ContentScale.FillBounds,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(with(density) { imeSize.height.toDp() })
+                    .matchParentSize()
                     .alpha(bgPhotoVis / 100f)
                     .blur(radius = bgPhotoBlur.dp),
             )
