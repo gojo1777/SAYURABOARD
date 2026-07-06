@@ -11,6 +11,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,8 +37,8 @@ import androidx.compose.material.icons.rounded.TextIncrease
 import androidx.compose.material.icons.rounded.ToggleOn
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.ZoomIn
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Dialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -75,6 +75,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import dev.patrickgold.jetpref.datastore.model.collectAsState
 import dev.ngocthanhgl.vikey.app.FlorisPreferenceModel
 import dev.ngocthanhgl.vikey.R
@@ -462,148 +463,160 @@ private fun CropPhotoDialog(
     var displayW by remember { mutableFloatStateOf(0f) }
     var displayH by remember { mutableFloatStateOf(0f) }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringRes(R.string.liquid_glass__crop_photo)) },
-        text = {
-            Column {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 200.dp)
-                        .onGloballyPositioned { coords ->
-                            displayW = coords.size.width.toFloat()
-                            displayH = coords.size.height.toFloat()
-                        }
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                scale = (scale * zoom).coerceIn(0.5f, 5f)
-                                offsetX += pan.x
-                                offsetY += pan.y
-                                val bw = bitmap.width.toFloat()
-                                val bh = bitmap.height.toFloat()
-                                val dw = displayW
-                                val dh = displayH
-                                if (dw > 0f && dh > 0f) {
-                                    val contentW = dw * scale
-                                    val contentH = (bh * dw / bw) * scale
-                                    val cropW = dw * CROP_WIDTH_FRACTION
-                                    val cropH = cropW / aspectRatio
-                                    val maxOffX = ((contentW - cropW) / 2f).coerceAtLeast(0f)
-                                    val maxOffY = ((contentH - cropH) / 2f).coerceAtLeast(0f)
-                                    offsetX = offsetX.coerceIn(-maxOffX, maxOffX)
-                                    offsetY = offsetY.coerceIn(-maxOffY, maxOffY)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                TextButton(onClick = onDismiss) { Text(stringRes(R.string.action__cancel)) }
+                Text(
+                    text = stringRes(R.string.liquid_glass__crop_photo),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Button(
+                    onClick = {
+                        val dir = File(context.filesDir, "photos")
+                        dir.mkdirs()
+                        val file = File(dir, "bg.jpg")
+                        try {
+                            val bw = bitmap.width.toFloat()
+                            val bh = bitmap.height.toFloat()
+                            val dw = displayW
+                            val dh = displayH
+                            if (dw > 0f && dh > 0f && scale > 0f) {
+                                val fs = dw / bw
+                                val ox = 0f
+                                val oy = (dh - (bh * fs)) / 2f
+                                val cw = dw * CROP_WIDTH_FRACTION
+                                val ch = cw / aspectRatio
+                                val cl = (dw - cw) / 2f
+                                val ct = (dh - ch) / 2f
+                                val cx = dw / 2f
+                                val cy = dh / 2f
+                                fun ix(px: Float) = (px - cx - offsetX) / scale + cx
+                                fun iy(py: Float) = (py - cy - offsetY) / scale + cy
+                                val bl = ((ix(cl) - ox) / fs).toInt().coerceIn(0, bitmap.width)
+                                val bt = ((iy(ct) - oy) / fs).toInt().coerceIn(0, bitmap.height)
+                                val br = ((ix(cl + cw) - ox) / fs).toInt().coerceIn(bl + 1, bitmap.width)
+                                val bb = ((iy(ct + ch) - oy) / fs).toInt().coerceIn(bt + 1, bitmap.height)
+                                val cropped = Bitmap.createBitmap(bitmap, bl, bt, br - bl, bb - bt)
+                                FileOutputStream(file).use { out ->
+                                    cropped.compress(Bitmap.CompressFormat.JPEG, 90, out)
+                                }
+                                cropped.recycle()
+                            } else {
+                                FileOutputStream(file).use { out ->
+                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
                                 }
                             }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.FillWidth,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .alpha(visibility / 100f)
-                            .blur(radius = blurRadius.dp)
-                            .graphicsLayer(
-                                scaleX = scale,
-                                scaleY = scale,
-                                translationX = offsetX,
-                                translationY = offsetY,
-                            ),
-                    )
-                    Canvas(Modifier.fillMaxSize()) {
-                        val cropW = size.width * CROP_WIDTH_FRACTION
-                        val cropH = cropW / aspectRatio
-                        val left = (size.width - cropW) / 2f
-                        val top = (size.height - cropH) / 2f
-                        val overlay = Color.Black.copy(alpha = 0.5f)
-                        val guide = Color.White
-
-                        drawRect(overlay, Offset(0f, 0f), Size(size.width, top))
-                        drawRect(overlay, Offset(0f, top + cropH), Size(size.width, size.height - top - cropH))
-                        drawRect(overlay, Offset(0f, top), Size(left, cropH))
-                        drawRect(overlay, Offset(left + cropW, top), Size(size.width - left - cropW, cropH))
-
-                        drawRect(guide, Offset(left, top), Size(cropW, cropH), style = Stroke(2.dp.toPx()))
-
-                        val r = 6.dp.toPx()
-                        drawCircle(guide, r, Offset(left, top))
-                        drawCircle(guide, r, Offset(left + cropW, top))
-                        drawCircle(guide, r, Offset(left, top + cropH))
-                        drawCircle(guide, r, Offset(left + cropW, top + cropH))
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(stringRes(R.string.liquid_glass__visibility), style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = visibility,
-                    onValueChange = { visibility = it },
-                    valueRange = 0f..100f,
-                    steps = 19,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(stringRes(R.string.liquid_glass__blur), style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = blurRadius,
-                    onValueChange = { blurRadius = it },
-                    valueRange = 0f..30f,
-                    steps = 29,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                            onSave("photos/bg.jpg", visibility.toInt(), blurRadius.toInt())
+                        } catch (e: Exception) {
+                            context.showShortToastSync("Crop failed: ${e.message}")
+                            onSave("", 100, 0)
+                        }
+                    },
+                    shape = RoundedCornerShape(50.dp),
+                ) { Text(stringRes(R.string.action__apply)) }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val dir = File(context.filesDir, "photos")
-                    dir.mkdirs()
-                    val file = File(dir, "bg.jpg")
-                    try {
-                        val bw = bitmap.width.toFloat()
-                        val bh = bitmap.height.toFloat()
-                        val dw = displayW
-                        val dh = displayH
-                        if (dw > 0f && dh > 0f && scale > 0f) {
-                            val fs = dw / bw
-                            val rw = dw
-                            val rh = bh * fs
-                            val ox = 0f
-                            val oy = (dh - rh) / 2f
-                            val cw = dw * CROP_WIDTH_FRACTION
-                            val ch = cw / aspectRatio
-                            val cl = (dw - cw) / 2f
-                            val ct = (dh - ch) / 2f
-                            val cx = dw / 2f
-                            val cy = dh / 2f
-                            fun ix(px: Float) = (px - cx - offsetX) / scale + cx
-                            fun iy(py: Float) = (py - cy - offsetY) / scale + cy
-                            val bl = ((ix(cl) - ox) / fs).toInt().coerceIn(0, bitmap.width)
-                            val bt = ((iy(ct) - oy) / fs).toInt().coerceIn(0, bitmap.height)
-                            val br = ((ix(cl + cw) - ox) / fs).toInt().coerceIn(bl + 1, bitmap.width)
-                            val bb = ((iy(ct + ch) - oy) / fs).toInt().coerceIn(bt + 1, bitmap.height)
-                            val cropped = Bitmap.createBitmap(bitmap, bl, bt, br - bl, bb - bt)
-                            FileOutputStream(file).use { out ->
-                                cropped.compress(Bitmap.CompressFormat.JPEG, 90, out)
-                            }
-                            cropped.recycle()
-                        } else {
-                            FileOutputStream(file).use { out ->
-                                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+
+            Spacer(Modifier.height(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coords ->
+                        displayW = coords.size.width.toFloat()
+                        displayH = coords.size.height.toFloat()
+                    }
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            scale = (scale * zoom).coerceIn(0.5f, 5f)
+                            offsetX += pan.x
+                            offsetY += pan.y
+                            val bw = bitmap.width.toFloat()
+                            val bh = bitmap.height.toFloat()
+                            val dw = displayW
+                            val dh = displayH
+                            if (dw > 0f && dh > 0f) {
+                                val contentW = dw * scale
+                                val contentH = (bh * dw / bw) * scale
+                                val cropW = dw * CROP_WIDTH_FRACTION
+                                val cropH = cropW / aspectRatio
+                                val maxOffX = ((contentW - cropW) / 2f).coerceAtLeast(0f)
+                                val maxOffY = ((contentH - cropH) / 2f).coerceAtLeast(0f)
+                                offsetX = offsetX.coerceIn(-maxOffX, maxOffX)
+                                offsetY = offsetY.coerceIn(-maxOffY, maxOffY)
                             }
                         }
-                        onSave("photos/bg.jpg", visibility.toInt(), blurRadius.toInt())
-                    }                     catch (e: Exception) {
-                        context.showShortToastSync("Crop failed: ${e.message}")
-                        onSave("", 100, 0)
-                    }
-                },
-                shape = RoundedCornerShape(50.dp),
-            ) { Text(stringRes(R.string.action__apply)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringRes(R.string.action__cancel)) }
-        },
-    )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillWidth,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(visibility / 100f)
+                        .blur(radius = blurRadius.dp)
+                        .graphicsLayer(
+                            scaleX = scale,
+                            scaleY = scale,
+                            translationX = offsetX,
+                            translationY = offsetY,
+                        ),
+                )
+                Canvas(Modifier.fillMaxSize()) {
+                    val cropW = size.width * CROP_WIDTH_FRACTION
+                    val cropH = cropW / aspectRatio
+                    val left = (size.width - cropW) / 2f
+                    val top = (size.height - cropH) / 2f
+                    val overlay = Color.Black.copy(alpha = 0.5f)
+                    val guide = Color.White
+
+                    drawRect(overlay, Offset(0f, 0f), Size(size.width, top))
+                    drawRect(overlay, Offset(0f, top + cropH), Size(size.width, size.height - top - cropH))
+                    drawRect(overlay, Offset(0f, top), Size(left, cropH))
+                    drawRect(overlay, Offset(left + cropW, top), Size(size.width - left - cropW, cropH))
+
+                    drawRect(guide, Offset(left, top), Size(cropW, cropH), style = Stroke(2.dp.toPx()))
+
+                    val r = 6.dp.toPx()
+                    drawCircle(guide, r, Offset(left, top))
+                    drawCircle(guide, r, Offset(left + cropW, top))
+                    drawCircle(guide, r, Offset(left, top + cropH))
+                    drawCircle(guide, r, Offset(left + cropW, top + cropH))
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Text(stringRes(R.string.liquid_glass__visibility), style = MaterialTheme.typography.bodySmall)
+            Slider(
+                value = visibility,
+                onValueChange = { visibility = it },
+                valueRange = 0f..100f,
+                steps = 19,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(stringRes(R.string.liquid_glass__blur), style = MaterialTheme.typography.bodySmall)
+            Slider(
+                value = blurRadius,
+                onValueChange = { blurRadius = it },
+                valueRange = 0f..30f,
+                steps = 29,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
 }
