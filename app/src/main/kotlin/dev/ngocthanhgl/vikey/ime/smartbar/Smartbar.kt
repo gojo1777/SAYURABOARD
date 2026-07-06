@@ -64,6 +64,8 @@ import androidx.compose.ui.graphics.isUnspecified
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.ngocthanhgl.vikey.R
 import dev.ngocthanhgl.vikey.app.FlorisPreferenceStore
@@ -87,7 +89,7 @@ import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
 
 const val AnimationDuration = 200
 
-private val VerticalSpring = spring(dampingRatio = 0.5f, stiffness = 400f)
+private val VerticalSpring = spring<IntSize>(dampingRatio = 0.5f, stiffness = 400f)
 val VerticalEnterTransition: EnterTransition =
     fadeIn(tween(AnimationDuration)) + expandVertically(VerticalSpring, Alignment.Bottom)
 val VerticalExitTransition: ExitTransition =
@@ -225,7 +227,7 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 .fillMaxHeight(),
         ) {
             val animate = shouldAnimate
-            val slideSpring = remember { spring(dampingRatio = 0.5f, stiffness = 400f) }
+            val slideSpring = remember { spring<IntOffset>(dampingRatio = 0.5f, stiffness = 400f) }
             val enterTransition = remember(animate, flipToggles) {
                 if (animate) {
                     fadeIn(tween(AnimationDuration)) +
