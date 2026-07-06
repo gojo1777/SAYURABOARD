@@ -20,10 +20,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
@@ -75,8 +78,6 @@ import dev.ngocthanhgl.vikey.nlpManager
 import dev.patrickgold.jetpref.datastore.model.collectAsState
 import kotlinx.coroutines.launch
 import org.florisboard.lib.android.AndroidVersion
-
-import org.florisboard.lib.compose.verticalTween
 import org.florisboard.lib.snygg.ui.SnyggBox
 import org.florisboard.lib.snygg.ui.SnyggColumn
 import org.florisboard.lib.snygg.ui.SnyggIcon
@@ -86,8 +87,11 @@ import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
 
 const val AnimationDuration = 200
 
-val VerticalEnterTransition = EnterTransition.verticalTween(AnimationDuration)
-val VerticalExitTransition = ExitTransition.verticalTween(AnimationDuration)
+private val VerticalSpring = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
+val VerticalEnterTransition: EnterTransition =
+    fadeIn(tween(AnimationDuration)) + expandVertically(VerticalSpring, Alignment.Bottom)
+val VerticalExitTransition: ExitTransition =
+    fadeOut(tween(AnimationDuration)) + shrinkVertically(VerticalSpring, Alignment.Bottom)
 
 private val NoEnterTransition = fadeIn(tween(0)) + slideInHorizontally(tween(0)) { 0 }
 private val NoExitTransition = fadeOut(tween(0)) + slideOutHorizontally(tween(0)) { 0 }
@@ -221,11 +225,12 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 .fillMaxHeight(),
         ) {
             val animate = shouldAnimate
+            val slideSpring = remember { spring<Float>(dampingRatio = 0.5f, stiffness = 400f) }
             val enterTransition = remember(animate, flipToggles) {
                 if (animate) {
                     fadeIn(tween(AnimationDuration)) +
                         slideInHorizontally(
-                            animationSpec = tween(AnimationDuration),
+                            animationSpec = slideSpring,
                             initialOffsetX = { if (flipToggles) it / 6 else -it / 6 },
                         )
                 } else NoEnterTransition
@@ -234,7 +239,7 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 if (animate) {
                     fadeOut(tween(AnimationDuration)) +
                         slideOutHorizontally(
-                            animationSpec = tween(AnimationDuration),
+                            animationSpec = slideSpring,
                             targetOffsetX = { if (flipToggles) it / 6 else -it / 6 },
                         )
                 } else NoExitTransition

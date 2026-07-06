@@ -19,6 +19,7 @@ package dev.ngocthanhgl.vikey.app
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -216,16 +217,16 @@ object Routes {
             navController = navController,
             startDestination = startDestination,
             enterTransition = {
-                slideIn { IntOffset(it.width, 0) } + fadeIn(tween(300))
+                slideIn(spring(dampingRatio = 0.8f, stiffness = 300f)) { IntOffset(it.width, 0) } + fadeIn(tween(250))
             },
             exitTransition = {
-                slideOut { IntOffset(-it.width / 3, 0) } + fadeOut(tween(200))
+                slideOut(spring(dampingRatio = 0.8f, stiffness = 300f)) { IntOffset(-it.width / 3, 0) } + fadeOut(tween(150))
             },
             popEnterTransition = {
-                slideIn { IntOffset(-it.width / 3, 0) } + fadeIn(tween(200))
+                slideIn(spring(dampingRatio = 0.8f, stiffness = 300f)) { IntOffset(-it.width / 3, 0) } + fadeIn(tween(150))
             },
             popExitTransition = {
-                slideOut { IntOffset(it.width, 0) } + fadeOut(tween(300))
+                slideOut(spring(dampingRatio = 0.8f, stiffness = 300f)) { IntOffset(it.width, 0) } + fadeOut(tween(250))
             },
         ) {
             composable<Setup.Screen> { SetupScreen() }

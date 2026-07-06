@@ -1,5 +1,13 @@
 package dev.ngocthanhgl.vikey.app.settings
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -34,6 +42,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -190,7 +199,8 @@ fun HomeScreen() {
         Column(
             modifier = Modifier
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .animateContentSize(spring(dampingRatio = 0.8f, stiffness = 300f)),
         ) {
             ImeStatusHero()
 
@@ -201,9 +211,15 @@ fun HomeScreen() {
             )
             Spacer(Modifier.height(8.dp))
 
-            for (section in filteredSections) {
-                SettingsSectionHeader(text = section.header)
-                ElevatedCard(
+            filteredSections.forEachIndexed { index, section ->
+                val enter = fadeIn(tween(300, delayMillis = index * 80)) +
+                    slideInVertically(tween(300, delayMillis = index * 80)) { it / 4 }
+                val exit = fadeOut(tween(200)) + slideOutVertically(tween(200)) { it / 4 }
+                key(section.header) {
+                    AnimatedVisibility(visible = true, enter = enter, exit = exit) {
+                        Column {
+                            SettingsSectionHeader(text = section.header)
+                            ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
@@ -224,6 +240,9 @@ fun HomeScreen() {
                     }
                 }
             }
+        }
+    }
+}
             Spacer(Modifier.height(16.dp))
         }
     }
