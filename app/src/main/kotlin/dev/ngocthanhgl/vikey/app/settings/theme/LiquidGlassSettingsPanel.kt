@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import org.florisboard.lib.android.showShortToastSync
 import org.florisboard.lib.compose.stringRes
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -594,7 +595,7 @@ private fun CropPhotoDialog(
                         }
                         onSave("photos/bg.jpg", visibility.toInt(), blurRadius.toInt())
                     }                     catch (e: Exception) {
-                        org.florisboard.lib.android.showShortToastSync(context, "Crop failed: ${e.message}")
+                        context.showShortToastSync("Crop failed: ${e.message}")
                         onSave("", 100, 0)
                     }
                 },
