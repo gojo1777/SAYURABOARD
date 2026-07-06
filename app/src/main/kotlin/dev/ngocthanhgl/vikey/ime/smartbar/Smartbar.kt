@@ -87,7 +87,7 @@ import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
 
 const val AnimationDuration = 200
 
-private val VerticalSpring = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
+private val VerticalSpring = spring(dampingRatio = 0.5f, stiffness = 400f)
 val VerticalEnterTransition: EnterTransition =
     fadeIn(tween(AnimationDuration)) + expandVertically(VerticalSpring, Alignment.Bottom)
 val VerticalExitTransition: ExitTransition =
@@ -225,7 +225,7 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 .fillMaxHeight(),
         ) {
             val animate = shouldAnimate
-            val slideSpring = remember { spring<Float>(dampingRatio = 0.5f, stiffness = 400f) }
+            val slideSpring = remember { spring(dampingRatio = 0.5f, stiffness = 400f) }
             val enterTransition = remember(animate, flipToggles) {
                 if (animate) {
                     fadeIn(tween(AnimationDuration)) +
