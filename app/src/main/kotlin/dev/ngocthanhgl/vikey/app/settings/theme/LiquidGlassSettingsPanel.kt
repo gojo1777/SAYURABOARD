@@ -21,11 +21,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.BlurOn
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.Layers
@@ -37,10 +40,13 @@ import androidx.compose.material.icons.rounded.TextIncrease
 import androidx.compose.material.icons.rounded.ToggleOn
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.ZoomIn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Dialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -60,6 +66,7 @@ import org.florisboard.lib.compose.stringRes
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.ngocthanhgl.vikey.ime.text.GradientPreset
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -121,8 +128,10 @@ fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
     val bgVisibility by prefs.backgroundPhoto.visibility.collectAsState()
     val bgBlur by prefs.backgroundPhoto.blurRadius.collectAsState()
     val keyboardAspectRatio by prefs.backgroundPhoto.lastKeyboardAspectRatio.collectAsState()
+    val gradPresetId by prefs.backgroundPhoto.gradientPreset.collectAsState()
     val context = LocalContext.current
     var cropUri by remember { mutableStateOf<Uri?>(null) }
+    var showGradientPicker by remember { mutableStateOf(false) }
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
     ) { uri ->
@@ -252,40 +261,93 @@ fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
     )
 
     if (bgPath.isNotBlank()) {
-        Text(
-            text = stringRes(R.string.liquid_glass__photo_selected),
-            style = MaterialTheme.typography.bodySmall,
-            color = LocalContentColor.current.copy(alpha = 0.56f),
-            modifier = Modifier.padding(start = 72.dp),
-        )
-        Spacer(Modifier.height(4.dp))
-        Button(
-            onClick = {
-                scope.launch {
-                    val file = File(context.filesDir, bgPath)
-                    if (file.exists()) file.delete()
-                    prefs.backgroundPhoto.imagePath.set("")
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-            ),
-            shape = RoundedCornerShape(50.dp),
+        val gradButton = @Composable {
+            OutlinedButton(
+                onClick = { showGradientPicker = true },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 4.dp),
+                shape = RoundedCornerShape(50.dp),
+                enabled = false,
+            ) { Text("Gradient") }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(stringRes(R.string.liquid_glass__remove_photo))
+            Button(
+                onClick = {
+                    scope.launch {
+                        val file = File(context.filesDir, bgPath)
+                        if (file.exists()) file.delete()
+                        prefs.backgroundPhoto.imagePath.set("")
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                ),
+                shape = RoundedCornerShape(50.dp),
+            ) { Text(stringRes(R.string.liquid_glass__remove_photo)) }
+            gradButton()
+        }
+    } else if (gradPresetId.isNotBlank()) {
+        val preset = GradientPreset.byId[gradPresetId]
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = preset?.label ?: gradPresetId,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+            )
+            IconButton(onClick = {
+                scope.launch { prefs.backgroundPhoto.gradientPreset.set("") }
+            }) {
+                Icon(
+                    Icons.Rounded.Delete,
+                    contentDescription = "Remove gradient",
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = {
+                    scope.launch { prefs.backgroundPhoto.gradientPreset.set("") }
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                ),
+                shape = RoundedCornerShape(50.dp),
+            ) { Text("Remove") }
+            OutlinedButton(
+                onClick = { showGradientPicker = true },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(50.dp),
+            ) { Text("Change") }
         }
     } else {
-        Button(
-            onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(50.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(stringRes(R.string.liquid_glass__choose_photo))
+            Button(
+                onClick = { photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(50.dp),
+            ) { Text(stringRes(R.string.liquid_glass__choose_photo)) }
+            OutlinedButton(
+                onClick = { showGradientPicker = true },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(50.dp),
+            ) { Text("Gradient Presets") }
         }
     }
 
@@ -299,12 +361,27 @@ fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
             onSave = { path, vis, blur ->
                 scope.launch {
                     prefs.backgroundPhoto.imagePath.set(path)
+                    prefs.backgroundPhoto.gradientPreset.set("")
                     prefs.backgroundPhoto.visibility.set(vis)
                     prefs.backgroundPhoto.blurRadius.set(blur)
                     cropUri = null
                 }
             },
             onDismiss = { cropUri = null },
+        )
+    }
+
+    if (showGradientPicker) {
+        GradientPickerDialog(
+            currentId = gradPresetId.ifEmpty { null },
+            onSelect = { preset ->
+                scope.launch {
+                    prefs.backgroundPhoto.imagePath.set("")
+                    prefs.backgroundPhoto.gradientPreset.set(preset.id)
+                }
+                showGradientPicker = false
+            },
+            onDismiss = { showGradientPicker = false },
         )
     }
 
@@ -619,4 +696,91 @@ private fun CropPhotoDialog(
             )
         }
     }
+}
+
+@Composable
+private fun GradientPreview(preset: GradientPreset, modifier: Modifier = Modifier) {
+    val paint = remember {
+        android.graphics.Paint().apply { isAntiAlias = true }
+    }
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val rad = preset.angleDeg * Math.PI / 180.0
+        val cosA = Math.cos(rad).toFloat()
+        val sinA = Math.sin(rad).toFloat()
+        val len = Math.sqrt((w * w + h * h).toDouble()).toFloat() * 0.65f
+        val cx = w / 2f
+        val cy = h / 2f
+        val shader = android.graphics.LinearGradient(
+            cx - len * cosA, cy - len * sinA,
+            cx + len * cosA, cy + len * sinA,
+            preset.colors.toIntArray(),
+            null,
+            android.graphics.Shader.TileMode.CLAMP,
+        )
+        paint.shader = shader
+        drawContext.canvas.nativeCanvas.drawRect(0f, 0f, w, h, paint)
+    }
+}
+
+@Composable
+private fun GradientPickerDialog(
+    currentId: String?,
+    onSelect: (GradientPreset) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Gradient Presets") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GradientPreset.ALL.chunked(2).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        row.forEach { preset ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { onSelect(preset) }
+                                    .then(
+                                        if (preset.id == currentId) {
+                                            Modifier.border(
+                                                2.dp,
+                                                Color(0xFF6200EE),
+                                                RoundedCornerShape(12.dp),
+                                            )
+                                        } else Modifier
+                                    ),
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    GradientPreview(
+                                        preset = preset,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp)
+                                            .clip(RoundedCornerShape(12.dp)),
+                                    )
+                                    Text(
+                                        text = preset.label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
+                                    )
+                                }
+                            }
+                        }
+                        if (row.size == 1) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+    )
 }

@@ -842,6 +842,10 @@ val audioActivationMode = enum(
             key = "bg_photo__last_keyboard_ar",
             default = 1.5f,
         )
+        val gradientPreset = string(
+            key = "bg_gradient__preset",
+            default = "",
+        )
     }
 
     override fun migrate(entry: PreferenceMigrationEntry): PreferenceMigrationEntry {

@@ -57,6 +57,7 @@ import dev.ngocthanhgl.vikey.ime.smartbar.IncognitoDisplayMode
 import dev.ngocthanhgl.vikey.ime.smartbar.InlineSuggestionsStyleCache
 import dev.ngocthanhgl.vikey.ime.smartbar.Smartbar
 import dev.ngocthanhgl.vikey.ime.smartbar.quickaction.QuickActionsOverflowPanel
+import dev.ngocthanhgl.vikey.ime.text.GradientPreset
 import dev.ngocthanhgl.vikey.ime.text.keyboard.BackgroundPhotoState
 import dev.ngocthanhgl.vikey.ime.text.keyboard.TextKeyboardLayout
 import dev.ngocthanhgl.vikey.ime.theme.FlorisImeUi
@@ -83,6 +84,7 @@ fun TextInputLayout(
     val bgPhotoPath by prefs.backgroundPhoto.imagePath.collectAsState()
     val bgPhotoVis by prefs.backgroundPhoto.visibility.collectAsState()
     val bgPhotoBlur by prefs.backgroundPhoto.blurRadius.collectAsState()
+    val gradPresetId by prefs.backgroundPhoto.gradientPreset.collectAsState()
 
     var bgBitmap by remember(bgPhotoPath) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(bgPhotoPath) {
@@ -110,7 +112,38 @@ fun TextInputLayout(
         }
     }
 
-    val bgPhotoBitmap = remember(bgBitmap) { bgBitmap?.asImageBitmap() }
+    val gradBitmap = remember(gradPresetId, photoBoxSize) {
+        if (gradPresetId.isNotBlank() && photoBoxSize.width > 0 && photoBoxSize.height > 0) {
+            val w = photoBoxSize.width
+            val h = photoBoxSize.height
+            val preset = GradientPreset.ALL.find { it.id == gradPresetId }
+            if (preset != null) {
+                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(bmp)
+                val rad = preset.angleDeg * Math.PI / 180.0
+                val cosA = Math.cos(rad).toFloat()
+                val sinA = Math.sin(rad).toFloat()
+                val len = Math.sqrt((w * w + h * h).toDouble()).toFloat() * 0.65f
+                val cx = w / 2f
+                val cy = h / 2f
+                val shader = android.graphics.LinearGradient(
+                    cx - len * cosA, cy - len * sinA,
+                    cx + len * cosA, cy + len * sinA,
+                    preset.colors.toIntArray(),
+                    null,
+                    android.graphics.Shader.TileMode.CLAMP,
+                )
+                android.graphics.Paint().let { paint ->
+                    paint.shader = shader
+                    canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), paint)
+                }
+                bmp
+            } else null
+        } else null
+    }
+
+    val bgBitmapFromSource = if (bgPhotoPath.isNotBlank()) bgBitmap else gradBitmap
+    val bgPhotoBitmap = remember(bgBitmapFromSource) { bgBitmapFromSource?.asImageBitmap() }
     var photoWindowPos by remember { mutableStateOf(Offset.Zero) }
     var photoBoxSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -147,7 +180,7 @@ fun TextInputLayout(
                 photoBoxSize = coords.size
             },
     ) {
-        if (bgPhotoPath.isNotBlank() && bgPhotoBitmap != null) {
+        if ((bgPhotoPath.isNotBlank() || gradPresetId.isNotBlank()) && bgPhotoBitmap != null) {
             Image(
                 bitmap = bgPhotoBitmap,
                 contentDescription = null,
@@ -168,7 +201,7 @@ fun TextInputLayout(
                     .fillMaxWidth()
                     .wrapContentHeight()
                     .then(
-                        if (bgPhotoPath.isNotBlank() && bgBitmap != null) {
+                        if ((bgPhotoPath.isNotBlank() || gradPresetId.isNotBlank()) && bgBitmapFromSource != null) {
                             Modifier.drawBehind {
                                 val overlayAlpha = (bgPhotoVis / 100f) * 0.35f
                                 drawRect(Color.Black.copy(alpha = overlayAlpha), size = size)
