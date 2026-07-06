@@ -76,7 +76,6 @@ import dev.ngocthanhgl.vikey.ime.sheet.BottomSheetWindow
 import dev.ngocthanhgl.vikey.ime.text.TextInputLayout
 import dev.ngocthanhgl.vikey.ime.theme.FlorisImeUi
 import dev.ngocthanhgl.vikey.ime.theme.LocalLiquidGlassEnabled
-import dev.ngocthanhgl.vikey.ime.theme.LiquidGlassEffect
 import dev.ngocthanhgl.vikey.keyboardManager
 import kotlinx.coroutines.delay
 import org.florisboard.lib.compose.ProvideActualLayoutDirection
@@ -179,36 +178,34 @@ fun BoxScope.ImeWindow() {
 
     FloatingDockToFixedIndicator()
 
-    LiquidGlassEffect(enabled = liquidGlassEnabled) {
-        SnyggBox(
-            elementName = FlorisImeUi.Window.elementName,
-            attributes = attributes,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .ifIsInstance<ImeWindowProps.Fixed>(windowSpec.props) {
-                    Modifier
-                        .fillMaxWidth()
-                }
-                .ifIsInstance<ImeWindowProps.Floating>(windowSpec.props) { props ->
-                    Modifier
-                        .offset(props.offsetLeft, -props.offsetBottom)
-                        .width(props.keyboardWidth)
-                }
-                .wrapContentHeight()
-                .graphicsLayer(alpha = windowAlpha)
-                .onGloballyPositioned { coords ->
-                    val newInsets = with(density) { ImeInsets.Window.of(coords.boundsInRoot().roundToIntRect()) }
-                    windowController.updateWindowInsets(newInsets)
-                },
-            supportsBackgroundImage = true,
-            allowClip = false,
-        ) {
-            OneHandedPanel()
-            ProvideKeyboardRowBaseHeight {
-                ImeInnerWindow()
+    SnyggBox(
+        elementName = FlorisImeUi.Window.elementName,
+        attributes = attributes,
+        modifier = Modifier
+            .align(Alignment.BottomStart)
+            .ifIsInstance<ImeWindowProps.Fixed>(windowSpec.props) {
+                Modifier
+                    .fillMaxWidth()
             }
-            ImeWindowResizeHandlesFloating()
+            .ifIsInstance<ImeWindowProps.Floating>(windowSpec.props) { props ->
+                Modifier
+                    .offset(props.offsetLeft, -props.offsetBottom)
+                    .width(props.keyboardWidth)
+            }
+            .wrapContentHeight()
+            .graphicsLayer(alpha = windowAlpha)
+            .onGloballyPositioned { coords ->
+                val newInsets = with(density) { ImeInsets.Window.of(coords.boundsInRoot().roundToIntRect()) }
+                windowController.updateWindowInsets(newInsets)
+            },
+        supportsBackgroundImage = true,
+        allowClip = false,
+    ) {
+        OneHandedPanel()
+        ProvideKeyboardRowBaseHeight {
+            ImeInnerWindow()
         }
+        ImeWindowResizeHandlesFloating()
     }
 }
 

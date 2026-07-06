@@ -99,7 +99,11 @@ fun TextInputLayout(
                     }
                     inJustDecodeBounds = false
                 }
-                bgBitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
+                try {
+                    bgBitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
+                } catch (_: OutOfMemoryError) {
+                    bgBitmap = null
+                }
             } else {
                 bgBitmap = null
             }

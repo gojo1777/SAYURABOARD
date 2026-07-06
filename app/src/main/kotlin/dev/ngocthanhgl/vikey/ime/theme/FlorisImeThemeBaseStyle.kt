@@ -42,6 +42,8 @@ val FlorisImeThemeBaseStyle = SnyggStylesheet.v2 {
         "--on-background" to rgbaColor(255, 255, 255)
         "--on-background-disabled" to rgbaColor(80, 80, 80)
         "--on-surface" to rgbaColor(255, 255, 255)
+        "--on-surface-variant" to rgbaColor(255, 255, 255, 0.7f)
+        "--surface-container-high" to rgbaColor(55, 55, 55)
 
         "--shape" to roundedCornerShape(8.dp)
         "--shape-variant" to roundedCornerShape(12.dp)

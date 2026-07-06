@@ -41,6 +41,7 @@ import dev.ngocthanhgl.vikey.lib.ext.ExtensionComponentName
 import dev.ngocthanhgl.vikey.lib.ext.ExtensionMeta
 import dev.ngocthanhgl.vikey.lib.io.ZipUtils
 import dev.ngocthanhgl.vikey.lib.util.TimeUtils.javaLocalTime
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -130,16 +131,21 @@ class ThemeManager(context: Context) {
         val themeExt = extensionManager.getExtensionById(activeName.extensionId) as? ThemeExtension
         val themeExtRef = themeExt?.sourceRef
         if (themeExtRef == null) {
+            _activeThemeInfo.value = ThemeInfo.DEFAULT
             return@withLock
         }
         val themeConfig = themeExt.themes.find { it.id == activeName.componentId }
         if (themeConfig == null) {
+            _activeThemeInfo.value = ThemeInfo.DEFAULT
             return@withLock
         }
         val loadedParent = File(appContext.cacheDir, "loaded")
+        val activeLoadedDir = _activeThemeInfo.value.loadedDir?.canonicalPath
         if (loadedParent.exists()) {
             loadedParent.listFiles().orEmpty().forEach { dir ->
-                if (dir.isDirectory) dir.deleteRecursively()
+                if (dir.isDirectory && dir.canonicalPath != activeLoadedDir) {
+                    dir.deleteRecursively()
+                }
             }
         }
         val loadedDir = loadedParent.subDir(UUID.randomUUID().toString())
@@ -158,6 +164,7 @@ class ThemeManager(context: Context) {
                 _activeThemeInfo.value = newInfo
             },
             onFailure = { cause ->
+                if (cause is CancellationException) throw cause
                 _activeThemeInfo.value = ThemeInfo.DEFAULT.copy(
                     loadFailure = LoadFailure(themeExt.meta, themeConfig, cause)
                 )
@@ -185,11 +192,13 @@ class ThemeManager(context: Context) {
                 val current = LocalTime.now()
                 val sunrise = prefs.theme.sunriseTime.get().javaLocalTime
                 val sunset = prefs.theme.sunsetTime.get().javaLocalTime
-                if (current in sunrise..sunset) {
-                    prefs.theme.dayThemeId.get()
+                val isDay = if (sunrise <= sunset) {
+                    current in sunrise..sunset
                 } else {
-                    prefs.theme.nightThemeId.get()
+                    current !in sunset..sunrise
                 }
+                if (isDay) prefs.theme.dayThemeId.get()
+                else prefs.theme.nightThemeId.get()
             }
         }
     }

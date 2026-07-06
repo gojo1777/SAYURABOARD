@@ -434,6 +434,12 @@ private fun TextKeyButton(
     val currentPhoto by rememberUpdatedState(backgroundPhoto)
     val lensRefraction = remember { Animatable(if (isLiquidGlass) lqConfig.lensIdle else 0f) }
 
+    LaunchedEffect(isLiquidGlass) {
+        if (!isLiquidGlass) {
+            lensRefraction.snapTo(0f)
+        }
+    }
+
     LaunchedEffect(key.isPressed) {
         if (key.isPressed) {
             if (lqConfig.rippleEnabled) {
@@ -580,6 +586,8 @@ private fun TextKeyButton(
                                 refractionHeight = heightPx,
                                 refractionAmount = amountPx,
                                 depthEffect = lqConfig.depthEnabled,
+                                // Chromatic aberration fallback: when depth is off, lens shader
+                                // still needs chromatic aberration for visual fidelity
                                 chromaticAberration = lqConfig.chromaticEnabled || !lqConfig.depthEnabled,
                             )
                         },

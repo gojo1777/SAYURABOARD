@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,6 +48,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -290,13 +292,15 @@ fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
             imageUri = uri,
             context = context,
             aspectRatio = keyboardAspectRatio,
+            initialVisibility = bgVisibility.toFloat(),
+            initialBlur = bgBlur.toFloat(),
             onSave = { path, vis, blur ->
                 scope.launch {
                     prefs.backgroundPhoto.imagePath.set(path)
                     prefs.backgroundPhoto.visibility.set(vis)
                     prefs.backgroundPhoto.blurRadius.set(blur)
+                    cropUri = null
                 }
-                cropUri = null
             },
             onDismiss = { cropUri = null },
         )
@@ -427,6 +431,8 @@ private fun CropPhotoDialog(
     imageUri: Uri,
     context: Context,
     aspectRatio: Float,
+    initialVisibility: Float = 100f,
+    initialBlur: Float = 0f,
     onSave: (String, Int, Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -434,7 +440,6 @@ private fun CropPhotoDialog(
         context.contentResolver.openInputStream(imageUri)?.use { stream ->
             val opts = BitmapFactory.Options().apply {
                 inMutable = true
-                inSampleSize = 2
             }
             BitmapFactory.decodeStream(stream, null, opts)
         }
@@ -444,11 +449,15 @@ private fun CropPhotoDialog(
         return
     }
 
+    DisposableEffect(bitmap) {
+        onDispose { bitmap.recycle() }
+    }
+
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
-    var visibility by remember { mutableFloatStateOf(100f) }
-    var blurRadius by remember { mutableFloatStateOf(0f) }
+    var visibility by remember { mutableFloatStateOf(initialVisibility) }
+    var blurRadius by remember { mutableFloatStateOf(initialBlur) }
     var displayW by remember { mutableFloatStateOf(0f) }
     var displayH by remember { mutableFloatStateOf(0f) }
 
@@ -460,7 +469,7 @@ private fun CropPhotoDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .heightIn(min = 200.dp)
                         .onGloballyPositioned { coords ->
                             displayW = coords.size.width.toFloat()
                             displayH = coords.size.height.toFloat()
@@ -571,8 +580,8 @@ private fun CropPhotoDialog(
                             fun iy(py: Float) = (py - cy - offsetY) / scale + cy
                             val bl = ((ix(cl) - ox) / fs).toInt().coerceIn(0, bitmap.width)
                             val bt = ((iy(ct) - oy) / fs).toInt().coerceIn(0, bitmap.height)
-                            val br = ((ix(cl + cw) - ox) / fs).toInt().coerceIn(1, bitmap.width)
-                            val bb = ((iy(ct + ch) - oy) / fs).toInt().coerceIn(1, bitmap.height)
+                            val br = ((ix(cl + cw) - ox) / fs).toInt().coerceIn(bl + 1, bitmap.width)
+                            val bb = ((iy(ct + ch) - oy) / fs).toInt().coerceIn(bt + 1, bitmap.height)
                             val cropped = Bitmap.createBitmap(bitmap, bl, bt, br - bl, bb - bt)
                             FileOutputStream(file).use { out ->
                                 cropped.compress(Bitmap.CompressFormat.JPEG, 90, out)
@@ -584,7 +593,8 @@ private fun CropPhotoDialog(
                             }
                         }
                         onSave("photos/bg.jpg", visibility.toInt(), blurRadius.toInt())
-                    } catch (_: Exception) {
+                    }                     catch (e: Exception) {
+                        org.florisboard.lib.android.showShortToastSync(context, "Crop failed: ${e.message}")
                         onSave("", 100, 0)
                     }
                 },

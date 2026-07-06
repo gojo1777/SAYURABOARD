@@ -307,7 +307,7 @@ fun ThemeEditorScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
-                    meta = workspace.editor!!.meta,
+                    meta = checkNotNull(workspace.editor) { "Editor must not be null" }.meta,
                     component = editor,
                     onEditBtnClick = { showEditComponentMetaDialog = true },
                 )
