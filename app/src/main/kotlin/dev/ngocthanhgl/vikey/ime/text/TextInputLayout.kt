@@ -112,6 +112,9 @@ fun TextInputLayout(
         }
     }
 
+    var photoWindowPos by remember { mutableStateOf(Offset.Zero) }
+    var photoBoxSize by remember { mutableStateOf(IntSize.Zero) }
+
     val gradBitmap = remember(gradPresetId, photoBoxSize) {
         if (gradPresetId.isNotBlank() && photoBoxSize.width > 0 && photoBoxSize.height > 0) {
             val w = photoBoxSize.width

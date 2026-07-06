@@ -535,13 +535,14 @@ private fun CropPhotoDialog(
     var displayW by remember { mutableFloatStateOf(0f) }
     var displayH by remember { mutableFloatStateOf(0f) }
 
-    Dialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
+        confirmButton = {},
+        text = {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(16.dp),
         ) {
             Row(
@@ -690,7 +691,8 @@ private fun CropPhotoDialog(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-    }
+    },
+)
 }
 
 @Composable
