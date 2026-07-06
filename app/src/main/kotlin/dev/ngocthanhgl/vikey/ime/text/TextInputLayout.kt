@@ -144,8 +144,6 @@ fun TextInputLayout(
 
     val bgBitmapFromSource = if (bgPhotoPath.isNotBlank()) bgBitmap else gradBitmap
     val bgPhotoBitmap = remember(bgBitmapFromSource) { bgBitmapFromSource?.asImageBitmap() }
-    var photoWindowPos by remember { mutableStateOf(Offset.Zero) }
-    var photoBoxSize by remember { mutableStateOf(IntSize.Zero) }
 
     val bgPhotoState = remember(bgPhotoBitmap, photoWindowPos, photoBoxSize) {
         bgPhotoBitmap?.let { bitmap ->

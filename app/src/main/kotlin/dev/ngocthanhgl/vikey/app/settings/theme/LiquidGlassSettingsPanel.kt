@@ -72,6 +72,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -261,16 +262,6 @@ fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
     )
 
     if (bgPath.isNotBlank()) {
-        val gradButton = @Composable {
-            OutlinedButton(
-                onClick = { showGradientPicker = true },
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 4.dp),
-                shape = RoundedCornerShape(50.dp),
-                enabled = false,
-            ) { Text("Gradient") }
-        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -289,7 +280,11 @@ fun LiquidGlassSettingsPanel(prefs: FlorisPreferenceModel) {
                 ),
                 shape = RoundedCornerShape(50.dp),
             ) { Text(stringRes(R.string.liquid_glass__remove_photo)) }
-            gradButton()
+            OutlinedButton(
+                onClick = { showGradientPicker = true },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(50.dp),
+            ) { Text("Gradient") }
         }
     } else if (gradPresetId.isNotBlank()) {
         val preset = GradientPreset.byId[gradPresetId]
@@ -700,28 +695,13 @@ private fun CropPhotoDialog(
 
 @Composable
 private fun GradientPreview(preset: GradientPreset, modifier: Modifier = Modifier) {
-    val paint = remember {
-        android.graphics.Paint().apply { isAntiAlias = true }
-    }
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val rad = preset.angleDeg * Math.PI / 180.0
-        val cosA = Math.cos(rad).toFloat()
-        val sinA = Math.sin(rad).toFloat()
-        val len = Math.sqrt((w * w + h * h).toDouble()).toFloat() * 0.65f
-        val cx = w / 2f
-        val cy = h / 2f
-        val shader = android.graphics.LinearGradient(
-            cx - len * cosA, cy - len * sinA,
-            cx + len * cosA, cy + len * sinA,
-            preset.colors.toIntArray(),
-            null,
-            android.graphics.Shader.TileMode.CLAMP,
+    Box(
+        modifier = modifier.background(
+            brush = Brush.linearGradient(
+                colors = preset.colors.map { Color(it) },
+            ),
         )
-        paint.shader = shader
-        drawContext.canvas.nativeCanvas.drawRect(0f, 0f, w, h, paint)
-    }
+    )
 }
 
 @Composable
