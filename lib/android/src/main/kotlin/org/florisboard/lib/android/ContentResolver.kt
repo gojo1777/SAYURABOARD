@@ -58,8 +58,9 @@ inline fun ContentResolver.read(uri: Uri, maxSize: Long = Long.MAX_VALUE, block:
             }
         }
     }
-    this.openInputStream(uri).use(block)
+    val inputStream = this.openInputStream(uri)
         ?: error("Cannot open input stream for given uri '$uri'")
+    inputStream.use(block)
 }
 
 inline fun ContentResolver.readToFile(uri: Uri, file: FsFile) {
