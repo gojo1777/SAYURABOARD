@@ -1,7 +1,7 @@
 {
   "$schema": "https://schemas.florisboard.org/snygg/v2/stylesheet",
   "@defines": {
-    "--bg": "rgba(12,12,10,1)",
+    "--bg": "rgba(0,0,0,1)",
     "--cq": "rgba(185,165,100,1)",
     "--tq": "rgba(240,235,215,1)",
     "--cw": "rgba(155,138,82,1)",
