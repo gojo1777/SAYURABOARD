@@ -30,7 +30,6 @@ import dev.ngocthanhgl.vikey.lib.devtools.LogTopic
 import dev.ngocthanhgl.vikey.lib.devtools.flogInfo
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
-import org.florisboard.lib.kotlin.map
 
 class FlorisSpellCheckerService : SpellCheckerService() {
     private val prefs by FlorisPreferenceStore
@@ -130,6 +129,7 @@ class FlorisSpellCheckerService : SpellCheckerService() {
             return spellMultiple(spellingSubtype, textInfos, suggestionsLimit)
                 .sendToDebugOverlayIfEnabled(textInfos)
                 .map { it.suggestionsInfo }
+                .toTypedArray()
         }
 
         override fun onGetSentenceSuggestionsMultiple(
