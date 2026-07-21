@@ -20,6 +20,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
+/**
+ * Wraps [T] with an exclusive lock for coroutine-safe access.
+ *
+ * **IMPORTANT:** The underlying [Mutex] is non-reentrant. Calling [withLock] while
+ * the same coroutine already holds the lock will **deadlock**. Avoid nested
+ * [withLock] calls on the same instance.
+ */
 class GuardedByLock<out T : Any>(@PublishedApi internal val wrapped: T) {
     @PublishedApi
     internal val lock = Mutex(locked = false)

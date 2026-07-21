@@ -42,7 +42,7 @@ data class SnyggTextAlignValue(val textAlign: TextAlign) : SnyggTextValue {
 
 data class SnyggTextDecorationLineValue(val textDecoration: TextDecoration) : SnyggTextValue {
     companion object : SnyggEnumLikeValueEncoder<TextDecoration>(
-        serializationId = "textAlign",
+        serializationId = "textDecorationLine",
         serializationMapping = mapOf(
             "none" to TextDecoration.None,
             "underline" to TextDecoration.Underline,
@@ -90,7 +90,7 @@ data class SnyggTextMaxLinesValue(val maxLines: Int) : SnyggTextValue {
 
 data class SnyggTextOverflowValue(val textOverflow: TextOverflow) : SnyggTextValue {
     companion object : SnyggEnumLikeValueEncoder<TextOverflow>(
-        serializationId = "textAlign",
+        serializationId = "textOverflow",
         serializationMapping = mapOf(
             "clip" to TextOverflow.Clip,
             "ellipsis" to TextOverflow.Ellipsis,

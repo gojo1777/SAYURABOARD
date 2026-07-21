@@ -419,8 +419,11 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         phantomSpace.setInactive()
         return if (content.selection.isSelectionMode) {
             commitText("")
-        } else runBlocking {
-            deleteAroundCursor(unit, OperationScope.BEFORE_CURSOR, n = 1)
+        } else {
+            scope.launch {
+                deleteAroundCursor(unit, OperationScope.BEFORE_CURSOR, n = 1)
+            }
+            true
         }
     }
 
@@ -437,8 +440,11 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         phantomSpace.setInactive()
         return if (content.selection.isSelectionMode) {
             commitText("")
-        } else runBlocking {
-            deleteAroundCursor(unit, OperationScope.AFTER_CURSOR, n = 1)
+        } else {
+            scope.launch {
+                deleteAroundCursor(unit, OperationScope.AFTER_CURSOR, n = 1)
+            }
+            true
         }
     }
 
@@ -666,6 +672,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         }
 
         private val state = AtomicInteger(0)
+        @Volatile
         var candidateForRevert: SuggestionCandidate? = null
             private set
 

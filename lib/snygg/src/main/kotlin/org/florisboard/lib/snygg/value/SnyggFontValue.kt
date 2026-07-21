@@ -74,7 +74,7 @@ data class SnyggCustomFontFamilyValue(val fontName: String) : SnyggFontValue {
 
 data class SnyggFontStyleValue(val fontStyle: FontStyle) : SnyggFontValue {
     companion object : SnyggEnumLikeValueEncoder<FontStyle>(
-        serializationId = "textAlign",
+        serializationId = "fontStyle",
         serializationMapping = mapOf(
             "normal" to FontStyle.Normal,
             "italic" to FontStyle.Italic,
@@ -88,7 +88,7 @@ data class SnyggFontStyleValue(val fontStyle: FontStyle) : SnyggFontValue {
 
 data class SnyggFontWeightValue(val fontWeight: FontWeight) : SnyggFontValue {
     companion object : SnyggEnumLikeValueEncoder<FontWeight>(
-        serializationId = "textAlign",
+        serializationId = "fontWeight",
         serializationMapping = mapOf(
             "thin" to FontWeight(100),
             "extra-light" to FontWeight(200),

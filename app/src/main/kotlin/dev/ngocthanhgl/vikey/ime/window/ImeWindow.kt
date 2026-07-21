@@ -115,11 +115,7 @@ fun ImeRootWindow() {
 
     val editorState by windowController.editor.state.collectAsState()
     val activeKeyboardState by keyboardManager.activeState.collectAsState()
-    val isEditorEnabled by remember {
-        derivedStateOf {
-            editorState.isEnabled
-        }
-    }
+    val isEditorEnabled = editorState.isEnabled
 
     Box(
         modifier = Modifier

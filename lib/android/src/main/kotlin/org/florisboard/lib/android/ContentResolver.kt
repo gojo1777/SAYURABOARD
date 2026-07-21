@@ -48,19 +48,18 @@ inline fun ContentResolver.read(uri: Uri, maxSize: Long = Long.MAX_VALUE, block:
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
     require(maxSize > 0) { "Argument `maxSize` must be greater than 0" }
-    val inputStream = this.openInputStream(uri)
-        ?: error("Cannot open input stream for given uri '$uri'")
     val assetFileDescriptor = this.openAssetFileDescriptor(uri, "r")
         ?: error("Cannot open asset file descriptor for given uri '$uri'")
-    assetFileDescriptor.use {
-        val assetFileSize = assetFileDescriptor.length
+    assetFileDescriptor.use { afd ->
+        val assetFileSize = afd.length
         if (assetFileSize != AssetFileDescriptor.UNKNOWN_LENGTH) {
             if (assetFileSize > maxSize) {
                 error("Contents of given uri '$uri' exceeds maximum size of $maxSize bytes!")
             }
         }
     }
-    inputStream.use(block)
+    this.openInputStream(uri).use(block)
+        ?: error("Cannot open input stream for given uri '$uri'")
 }
 
 inline fun ContentResolver.readToFile(uri: Uri, file: FsFile) {
