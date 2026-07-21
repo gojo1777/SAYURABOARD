@@ -116,7 +116,6 @@
     "background": "var(--k2)",
     "foreground": "var(--t2)",
     "font-size": "22sp",
-    "shadow-elevation": "2dp",
     "shape": "var(--shape)",
     "text-max-lines": "1"
   },

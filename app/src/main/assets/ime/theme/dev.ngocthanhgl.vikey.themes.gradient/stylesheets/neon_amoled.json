@@ -85,7 +85,6 @@
     "background": "var(--row0-bg)",
     "foreground": "var(--row0-fg)",
     "font-size": "22sp",
-    "shadow-elevation": "2dp",
     "shape": "var(--shape)",
     "text-max-lines": "1"
   },

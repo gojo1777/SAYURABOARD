@@ -72,7 +72,6 @@
     "foreground": "var(--on-background)",
     "font-size": "22sp",
     "shape": "var(--shape)",
-    "shadow-elevation": "2dp",
     "text-max-lines": "1"
   },
   "key:pressed": {
