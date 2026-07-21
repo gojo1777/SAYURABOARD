@@ -379,16 +379,19 @@ fun TextKeyboardLayout(
             rippleOrigin = null
         }
 
-        for (textKey in keyboard.keys()) {
-            TextKeyButton(
-                textKey, evaluator, desiredKey,
-                debugShowTouchBoundaries,
-                lqConfig = lqConfig,
-                backgroundPhoto = backgroundPhoto,
-                rippleOrigin = rippleOrigin,
-                rippleProgress = rippleRadius.value,
-                onRipple = { center -> rippleOrigin = center },
-            )
+        for ((rowIndex, row) in keyboard.rows().withIndex()) {
+            for (textKey in row) {
+                TextKeyButton(
+                    textKey, evaluator, desiredKey,
+                    debugShowTouchBoundaries,
+                    lqConfig = lqConfig,
+                    backgroundPhoto = backgroundPhoto,
+                    rippleOrigin = rippleOrigin,
+                    rippleProgress = rippleRadius.value,
+                    onRipple = { center -> rippleOrigin = center },
+                    rowIndex = rowIndex,
+                )
+            }
         }
 
         popupUiController.RenderPopups()
@@ -414,11 +417,13 @@ private fun TextKeyButton(
     rippleOrigin: Offset? = null,
     rippleProgress: Float = 0f,
     onRipple: ((Offset) -> Unit)? = null,
+    rowIndex: Int = 0,
 ) = with(LocalDensity.current) {
     val attributes = mapOf(
         FlorisImeUi.Attr.Code to key.computedData.code,
         FlorisImeUi.Attr.Mode to evaluator.keyboard.mode.toString(),
         FlorisImeUi.Attr.ShiftState to evaluator.state.inputShiftState.toString(),
+        "row" to rowIndex,
     )
     val selector = when {
         !key.isEnabled -> SnyggSelector.DISABLED
