@@ -4,8 +4,8 @@
       <img src=".github/repo_icon.png" width="128" alt="ViKey">
     </td>
     <td valign="middle">
-      <h1>ViKey</h1>
-      <p><strong>Vietnamese Telex Keyboard for Android</strong></p>
+      <h1>SayuraBoard</h1>
+      <p><strong>Sinhala and english  Keyboard for Android</strong></p>
       <p>
         IME mã nguồn mở đầu tiên dùng xử lý âm tiết thuần thuật toán —<br>
         không lookup table, không mutation, không dictionary dependency.
