@@ -7,8 +7,10 @@
       <h1>SayuraBoard</h1>
       <p><strong>Sinhala and english  Keyboard for Android</strong></p>
       <p>
-        IME mã nguồn mở đầu tiên dùng xử lý âm tiết thuần thuật toán —<br>
-        không lookup table, không mutation, không dictionary dependency.
+        Create by sayura mihiranga.
+          2026@
+          srilanka
+          version V01
       </p>
       <p>
         <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=flat&logo=kotlin&logoColor=white" alt="Kotlin">
