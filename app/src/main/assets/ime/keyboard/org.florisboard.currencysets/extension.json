@@ -178,6 +178,36 @@
       ]
     },
     {
+      "id": "sri_lankan_rupee",
+      "label": "Sri Lankan rupee (\u20a8)",
+      "slots": [
+        {
+          "code": 8360,
+          "label": "\u20a8"
+        },
+        {
+          "code": 36,
+          "label": "$"
+        },
+        {
+          "code": 8364,
+          "label": "\u20ac"
+        },
+        {
+          "code": 162,
+          "label": "\u00a2"
+        },
+        {
+          "code": 163,
+          "label": "\u00a3"
+        },
+        {
+          "code": 165,
+          "label": "\u00a5"
+        }
+      ]
+    },
+    {
       "id": "pakistani_rupee",
       "label": "Pakistani rupee (₨)",
       "slots": [
