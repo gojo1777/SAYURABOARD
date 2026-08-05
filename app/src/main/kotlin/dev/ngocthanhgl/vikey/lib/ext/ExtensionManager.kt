@@ -27,6 +27,7 @@ import dev.ngocthanhgl.vikey.ime.text.composing.Composer
 import dev.ngocthanhgl.vikey.ime.text.composing.HangulUnicode
 import dev.ngocthanhgl.vikey.ime.text.composing.KanaUnicode
 import dev.ngocthanhgl.vikey.ime.text.composing.WithRules
+import dev.ngocthanhgl.vikey.ime.text.composing.AlgorithmicSinhala
 import dev.ngocthanhgl.vikey.ime.text.composing.AlgorithmicTelex
 import dev.ngocthanhgl.vikey.ime.theme.ThemeExtension
 import dev.ngocthanhgl.vikey.lib.devtools.LogTopic
@@ -79,6 +80,7 @@ val ExtensionJsonConfig = Json {
             subclass(KanaUnicode::class, KanaUnicode.serializer())
             subclass(WithRules::class, WithRules.serializer())
             subclass(AlgorithmicTelex::class, AlgorithmicTelex.serializer())
+            subclass(AlgorithmicSinhala::class, AlgorithmicSinhala.serializer())
             defaultDeserializer { Appender.serializer() }
         }
     }
