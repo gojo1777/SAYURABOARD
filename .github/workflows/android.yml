@@ -1,4 +1,4 @@
-name: ViKey CI
+name: SAYURA BOARD CI
 
 on:
   workflow_dispatch:
