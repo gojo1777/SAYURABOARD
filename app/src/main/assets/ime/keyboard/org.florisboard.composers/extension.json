@@ -19,6 +19,11 @@
       "$": "telex-algorithm",
       "id": "telex",
       "label": "Telex"
+    },
+    {
+      "$": "sinhala-algorithm",
+      "id": "sinhala",
+      "label": "Sinhala (Phonetic)"
     }
   ]
 }
