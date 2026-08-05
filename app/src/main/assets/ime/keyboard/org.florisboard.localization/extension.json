@@ -57,6 +57,19 @@
       }
     },
     {
+      "languageTag": "si-LK",
+      "composer": "org.florisboard.composers:sinhala",
+      "currencySet": "org.florisboard.currencysets:sri_lankan_rupee",
+      "popupMapping": "org.florisboard.localization:default",
+      "nlpProviders": {
+        "spelling": "org.florisboard.nlp.providers.vietnamese",
+        "suggestion": "org.florisboard.nlp.providers.english"
+      },
+      "preferred": {
+        "characters": "org.florisboard.layouts:qwerty"
+      }
+    },
+    {
       "languageTag": "vi-VN",
       "composer": "org.florisboard.composers:telex",
       "currencySet": "org.florisboard.currencysets:vietnamese_dong",
